@@ -685,10 +685,7 @@ pk2<-ggplot(neumonia, aes(x =Pre_post, y = DOORMAT3))+
   stat_compare_means()+
   ylim(30,110)+
   ggtitle("DOORMAT 3 ")
-
-
 pk1
 pk2
-
 
 ```     
