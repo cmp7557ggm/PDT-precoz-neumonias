@@ -154,6 +154,7 @@ neumo3=neumonia%>%
 ```{r , echo=FALSE, warning=FALSE,results='asis'}
 crosstable(neumo2, c(alta,alta_cruda,final,diagetiol,cambiodat), by=Pre_post,test=TRUE) %>%
   as_flextable(keep_id=TRUE)
+
 ```    
 
 ### BASE DE DATOS CON HONGOS  
