@@ -22,7 +22,6 @@ library(nlme)
 library(fastDummies)
 library(caret)
 library(ggRandomForests)
-
 neumonia<-read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/plantilla buena.xlsx",sheet=1)
 
 emp<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_empirico)))
