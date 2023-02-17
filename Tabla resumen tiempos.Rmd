@@ -74,16 +74,6 @@ cambiodat_cruda<-ifelse(cambiodat_cruda<0,0,cambiodat_cruda)
 cambiodat_cruda<-round(cambiodat_cruda/3600,1)
 neumonia$cambiodat_cruda<-cambiodat_cruda
 
-neumonia<-mutate(neumonia,cambiodat24=cambiodat/24,
-           provi24=provi/24,
-           alta24=alta/24,
-           final24=final/24,
-           diagetiol24=diagetiol/24,
-           diagetiol224=diagetiol2/24,
-           rapida24=rapida/24,
-           recepcion24=recepcion/24,
-           emp24=emp/24)
-
 sub_neumo<-dplyr::filter(neumonia, DE==1)
 sub_neumo<-dplyr::filter(sub_neumo, Hongo==0)  
 
