@@ -208,7 +208,6 @@ Mconf<-function(df, x)
 b_datos<-dplyr::select(RF_sf,alta_cruda,Muertos,Cancer,Hongo,ED0,Charlson_Index,NFR,Edad,Chronic_Kidney_disease,Pseudomonas_a)
 #_________________________
 
-
 ccc<-combinar(b_datos,c(3:9),1)
 d1<-Mconf(b_datos,ccc)
 
