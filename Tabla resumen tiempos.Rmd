@@ -33,59 +33,15 @@ library(flextable)
 ```{r , echo=FALSE, warning=FALSE,include=FALSE}
 neumonia<-read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/plantilla buena.xlsx",sheet=1)
 
-
-emp<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_empirico)))
-emp<-ifelse(emp<0,0,emp)
-emp<-round(emp/3600,1)
-
-neumonia$emp<-emp
-
-
-recepcion<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_recepcion)))
-recepcion<-ifelse(recepcion<0,0,recepcion)
-recepcion<-round(recepcion/3600,1)
-neumonia$recepcion<-recepcion
-
-
-rapida<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_h_rapido)))
-rapida<-ifelse(rapida<0,0,rapida)
-rapida<-round(rapida/3600,1)
-neumonia$rapida<-rapida 
-
-rapida_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_rapido)))
-rapida_cruda<-ifelse(rapida<0,0,rapida_cruda)
-rapida_cruda<-round(rapida_cruda/3600,1)
-neumonia$rapida_cruda<-rapida_cruda
-
-
 diagetiol<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$fecha_diag_etiol_verdad)))
 diagetiol<-ifelse(diagetiol<0,0,diagetiol)
 diagetiol<-round(diagetiol/3600,1)
 neumonia$diagetiol<-diagetiol
 
-diagetiol_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$fecha_diag_etiol_verdad)))
-diagetiol_cruda<-ifelse(diagetiol_cruda<0,0,diagetiol_cruda)
-diagetiol_cruda<-round(diagetiol_cruda/3600,1)
-neumonia$diagetiol_cruda<-diagetiol_cruda
- 
-
-diagetiol2<-as.duration(as.period(interval(neumonia$Fecha_h_rapido , neumonia$fecha_diag_etiol_verdad)))
-diagetiol2<-ifelse(diagetiol2<0,0,diagetiol2)
-diagetiol2<-round(diagetiol2/3600,1)
-neumonia$diagetiol2<-diagetiol2
- 
-
-
 final<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_h_resultado_final)))
 final<-ifelse(final<0,0,final)
 final<-round(final/3600,1)
 neumonia$final<-final  
-
-final_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_resultado_final)))
-final_cruda<-ifelse(final_cruda<0,0,final_cruda)
-final_cruda<-round(final_cruda/3600,1)
-neumonia$final_cruda<-final_cruda
-
 
 alta<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_h_alta)))
 alta<-ifelse(alta<0,0,alta)
@@ -107,7 +63,6 @@ provi_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fe
 provi_cruda<-ifelse(provi_cruda<0,0,provi_cruda)
 provi_cruda<-round(provi_cruda/3600,1)
 neumonia$provi_cruda<-provi_cruda
-
 
 cambiodat<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_cambio)))
 cambiodat<-ifelse(cambiodat<0,0,cambiodat)
