@@ -1,0 +1,681 @@
+---
+title: "Descriptiva neumonia"
+author: "Carlos Martin Perez"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r carga,include=FALSE}
+library(dplyr)
+library(survival)
+library(knitr)
+library(dplyr)
+library(gridExtra)
+library(openintro)
+library(plotrix)
+library(formattable)
+library(KMsurv)
+library(MASS)
+library(ggplot2)
+library(plotly)
+library(survminer)
+library(ggalluvial)
+library(circlize)
+library(readxl)
+library(pillar)
+library(kableExtra)
+library(survival)
+library(VSURF)
+library(KMsurv)
+library(randomForestSRC)
+
+```    
+
+#### **INDICE**{#t0}
+
+
+
+* [Introducción](#t2)  
+
+* [ANÁLISIS ESTADÍSTICO DESCRIPTIVO](#t3)  
+
+    * [Outcome](#t30)
+    * [Antecedentes médicos de los pacientes](#t3a) 
+    * [Tratamiento farmacológico previo](#t3b) 
+    * [Incice de Charlson](#t3c)
+    * [Procedencia y destino de los pacientes](#t3d)
+    * [Tipo de adquisición](#t3e)
+    * [Tratamiento antibiótico previo](#t3f)
+    * [Tratamiento empírico](#t3g)
+    * [Diagnóstico microbiológico](#t3h)
+    * [Cambio de tratamiento tras Gram](#t3i)
+    * [Cambio de tratamiento tras cultivo rápido](#t3i2)
+    * [Cambio de tratamiento tras informe definitivo](#t3j)
+    * [TABLA DE TIEMPOS](#t3k)
+    * [Tablas resumen espectro DOORMAT](#t3l)
+     
+    
+        
+```{r carga2,warning=FALSE,include=FALSE}
+neumonia<-read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/plantilla buena.xlsx",sheet=1)
+#neumonia<-read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/Copia de #Neumonia pre y post diciembre 2022.xlsx",sheet=1)
+#neumonia <- read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/Neumonia pre y #post_GMG.xlsx",sheet = 2)
+.n<-nrow(neumonia)
+```    
+
+# Introducción  {#t2}  
+
+```{r,warning=FALSE,echo=FALSE} 
+neumonia$Periodo<-as.integer(neumonia$Periodo)
+Frecuencia<-table(neumonia$Periodo)
+Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+dt1<-cbind(Frecuencia,Porcentaje)
+dt1<-as.data.frame(dt1)
+rownames(dt1)<-c(min(neumonia$Periodo):max(neumonia$Periodo))
+dt1$Periodo<-rownames(dt1)
+dt1<-dt1[, c(3, 1, 2)] 
+
+Frecuencia2<-table(neumonia$Pre_post )
+Porcentaje2<-round(100*Frecuencia2/sum(Frecuencia2), 2)
+dt<-cbind(Frecuencia2,Porcentaje2)
+rownames(dt)<-c("Preintervencion","Postintervencion")
+```  
+
+
+Se analiza una base de datos constituida por `r .n` pacientes que fueron ingresados en el HUVR  por presentar neumonia.    
+
+Los pacientes se ordenan en `r nrow(dt1)` periodos de tiempo. Un total de `r dt[1]` pacientes se corresponden al periodo pre intervención, y el resto, `r dt[2]`, son del periodo post intervención.  
+
+
+```{r,warning=FALSE,echo=FALSE}
+
+dt1 %>%
+  kbl(caption="Periodo ")%>%
+  kable_styling(full_width = F)
+```  
+
+```{r,warning=FALSE,echo=FALSE}
+
+dt %>%
+  kbl(caption="Preintervencion - Postintervencion ")%>%
+kable_styling(full_width = F)
+```  
+
+
+
+# Análisis descriptivo  {#t3}
+
+
+```{r calculos, include=FALSE}
+
+hombres<- table(neumonia$Sexo)[1]
+mujeres<-table(neumonia$Sexo)[2]
+rec<-table(neumonia$Muertos)[2]
+recid<-dplyr::filter(neumonia,Muertos==1)
+time<-recid$Desde_diag_alta
+time_dias<-recid$Desde_diag_alta_en_dias
+timec<-mean(neumonia$Desde_diag_alta)
+sep<-table(neumonia$Diagnostico_sindromico)[1]
+sepp<-(sep/.n)*100
+sepn<-table(neumonia$Diagnostico_sindromico)[2]
+sepnp<-(sepn/.n)*100
+soc<-table(neumonia$Diagnostico_sindromico)[3]
+socp<-(soc/.n)*100
+socn<-table(neumonia$Diagnostico_sindromico)[4]
+socpn<-(socn/.n)*100
+
+```     
+
+De los pacientes que integran el grupo de estudio `r hombres` son hombres (el `r round(hombres/.n,2)*100` por ciento).  
+
+La edad media de los pacientes es de `r round(mean(neumonia$Edad),2)` años con una mediana de  `r median(neumonia$Edad)` años.  La edad menor es  `r min(neumonia$Edad)` años y la edad maxima  `r max(neumonia$Edad)` .  
+
+#### **Antecedentes personales de los pacientes** {#t3a}  
+
+
+`r table(neumonia$Smoking_history)[2]` pacientes eran fumadores (`r round((table(neumonia$Smoking_history)[2]*100)/.n,1)`% del total).   
+
+`r table(neumonia$Drinking_history)[2]` pacientes consumían alcohol de forma habitual (`r round((table(neumonia$Drinking_history)[2]*100)/.n,1)`%)  
+
+El `r round((table(neumonia$Diabetes)[2]*100)/.n,1)`% de los pacientes presentaban diabetes tipo 2 (`r table(neumonia$Diabetes)[2]` en total)  
+
+`r table(neumonia$Hypertension)[2]` pacientes eran hipertensos (`r round((table(neumonia$Hypertension)[2]*100)/.n,1)`% del total)  
+
+`r table(neumonia$Chronic_lung_disease)[2]` pacientes presentaban enfermedad pulmonar crónica (`r round((table(neumonia$Chronic_lung_disease)[2]*100)/.n,1)`%)  
+
+El `r round((table(neumonia$OSA)[2]*100)/.n,1)`% de los pacientes presentaban apnea obstructiva del sueño (`r table(neumonia$OSA)[2]` en total)  
+
+`r table(neumonia$Cerebrovascular_disease)[2]` pacientes presentaban antecedentes de enfermedad cerebrovascular (`r round((table(neumonia$Cerebrovascular_disease)[2]*100)/.n,1)`% del total)  
+
+`r table(neumonia$Cancer)[2]` pacientes presentaban enfermedad oncológica (`r round((table(neumonia$Cancer)[2]*100)/.n,1)`%)   
+
+El `r round((table(neumonia$Chronic_Kidney_disease)[2]*100)/.n,1)`% de los pacientes presentaban enfermedad renal crónica (`r table(neumonia$Chronic_Kidney_disease)[2]` en total)  
+
+`r table(neumonia$Chronic_liver_impairment)[2]` pacientes presentaban hepatopatía crónica (`r round((table(neumonia$Chronic_liver_impairment)[2]*100)/.n,1)`% del total)   
+
+`r table(neumonia$immunesuppresivemedications)[2]` pacientes tomaban medicación inmunosupresora (`r round((table(neumonia$immunesuppresivemedications)[2]*100)/.n,1)`%) 
+
+El `r round((table(neumonia$Residence)[2]*100)/.n,1)`% de los pacientes residían en instituciones geriátricas (`r table(neumonia$Residence)[2]` en total) <br>
+  <br>
+  <center> TABLA RESUMEN </center>
+  
+  
+  
+  |Factor de riesgo|Frecuencia|Porcentaje del total|
+  |:----:|:----:|:----:|  
+  |Fumadores|`r table(neumonia$Smoking_history)[2]`|`r round((table(neumonia$Smoking_history)[2]*100)/.n,1)`|
+  |Consumo alcohol|`r table(neumonia$Drinking_history)[2]`|`r round((table(neumonia$Drinking_history)[2]*100)/.n,1)`|  
+  |Diabetes Mellitus|`r table(neumonia$Diabetes)[2]` |`r round((table(neumonia$Diabetes)[2]*100)/.n,1)`|
+  |Hipertensión|`r table(neumonia$Hypertension)[2]`|`r round((table(neumonia$Hypertension)[2]*100)/.n,1)`|
+  |Enfermedad pulmonar crónica|`r table(neumonia$Chronic_lung_disease)[2]`|`r round((table(neumonia$Chronic_lung_disease)[2]*100)/.n,1)`| 
+  |Apnea obstructiva del sueño|`r table(neumonia$OSA)[2]`|`r round((table(neumonia$OSA)[2]*100)/.n,1)`|  
+  |Enfermedad cerebrovascular|`r table(neumonia$Cerebrovascular_disease)[2]`|`r round((table(neumonia$Cerebrovascular_disease)[2]*100)/.n,1)`|
+  |Tratamiento oncológico|`r table(neumonia$Cancer)[2]`|`r round((table(neumonia$Cancer)[2]*100)/.n,1)`|
+  |Enfermedad renal crónica|`r table(neumonia$Chronic_Kidney_disease)[2]`|`r round((table(neumonia$Chronic_Kidney_disease)[2]*100)/.n,1)`|
+  |Hepatopatía crónica|`r table(neumonia$Chronic_liver_impairment)[2]`|`r round((table(neumonia$Chronic_liver_impairment)[2]*100)/.n,1)`|
+  |Medicación inmunosupresora|`r table(neumonia$immunesuppresivemedications)[2]`|`r round((table(neumonia$immunesuppresivemedications)[2]*100)/.n,1)`|
+  |Institucionalizados|`r table(neumonia$Residence)[2]`|`r round((table(neumonia$Residence)[2]*100)/.n,1)`|   
+  
+[Volver al índice](#t0)  
+  
+
+
+#### **Tratamientos crónicos**  {#t3b}  
+    
+`r table(neumonia$Statin)[2]` pacientes tomaban estatinas (`r round((table(neumonia$Statin)[2]*100)/.n,1)`% del total).
+    
+`r table(neumonia$ACE_inhibitor_ARB)[2]` pacientes tomaban inhibidores de la enzima de conversión de la angiotensina (`r round((table(neumonia$ACE_inhibitor_ARB)[2]*100)/.n,1)`% del total). 
+    
+Tomaban glucocorticoides un total de `r table(neumonia$Systemic_glucocorticoid)[2]`, es decir, un `r round((table(neumonia$Systemic_glucocorticoid)[2]*100)/.n,1)`% del total  
+    
+`r table(neumonia$oral_anticoagulant_warfarin)[2]` pacientes estaban anticoagulados (`r round((table(neumonia$oral_anticoagulant_warfarin)[2]*100)/.n,1)`% del total)  
+    
+El `r round((table(neumonia$Antibiotic)[2]*100)/.n,1)`% de los pacientes tomaban antibióticos en los días previos al diagnóatico de neumonía (`r table(neumonia$Antibiotic)[2]` en total) <br> 
+      
+      
+<center> TABLA RESUMEN </center>
+      
+      
+|Tratamiento|Frecuencia|Porcentaje del total|
+|:----:|:----:|:----:| 
+|Statin|`r table(neumonia$Statin)[2]`|`r round((table(neumonia$Statin)[2]*100)/.n,1)`|
+|IECAS|`r table(neumonia$ACE_inhibitor_ARB)[2]`|`r round((table(neumonia$ACE_inhibitor_ARB)[2]*100)/.n,1)`|
+|Glucocorticoides|`r table(neumonia$Systemic_glucocorticoid)[2]`|`r round((table(neumonia$Systemic_glucocorticoid)[2]*100)/.n,1)`|
+|Warfarina|`r table(neumonia$oral_anticoagulant_warfarin)[2]`|`r round((table(neumonia$oral_anticoagulant_warfarin)[2]*100)/.n,1)`|
+|Antibióticos|`r table(neumonia$Antibiotic)[2]`|`r round((table(neumonia$Antibiotic)[2]*100)/.n,1)`|   
+      
+#### **Indice de Charlson**  {#t3c}  
+      
+La media de los pacientes en el índice de Charlson es de `r round(mean(neumonia$Charlson_Index,na.rm=T),2)` puntos con una mediana de  `r median(neumonia$Charlson_Index,na.rm=T)`.  El menor puntaje obtenido fué de   `r min(neumonia$Charlson_Index,na.rm=T)`, y el máximo  `r max(neumonia$Charlson_Index,na.rm=T)` puntos.    
+
+`r table(neumonia$charlson_Index3)[2]` pacientes presentaban un índice e Charlson mayor de tres puntos, lo que representa el `r round((table(neumonia$charlson_Index3)[2]*100)/.n,1)`% del total de pacientes. <br>    
+      
+.   
+
+#### **Procedencia  de los pacientes**  {#t3d}   
+
+
+<center> TABLA RESUMEN </center>  
+  
+  
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="tabla foco"}
+Pacientes<-table(neumonia$Procedencia)
+Porcentaje<-round(100*Pacientes/sum(Pacientes), 2)
+dt<-cbind(Pacientes,Porcentaje)
+dt %>%
+  kbl(caption="Procedencia de los pacientes")%>%
+  kable_styling()
+#knitr::kable(cbind(t1,t2),col.names = c("Frecuencia", "Porcentaje"), align = "c")
+
+```     
+
+[Volver al índice](#t0)  
+
+#### **Tipo de adquisición**  {#t3e} 
+  
+En cuanto al **tipo de  adquisición** , `r table(neumonia$Adquisicion)[1]` pacientes presentaron adquisición comunitaria (`r round((table(neumonia$Adquisicion)[1]*100)/.n,1)`%), frente a los `r .n-table(neumonia$Adquisicion)[1]` que presentarón adquisición nosocomial.   
+
+#### **Tratamiento antibiótico previo**  {#t3f}   
+  
+  `r table(neumonia$TABP)[2]` pacientes habían tomado antibióticos antes de la presentación de sintomas compatibles con neumonia, (un `r round((table(neumonia$TABP)[2]*100)/.n,1)`% del total).  
+  
+  Los tratamientos concretos fueron los siguientes:  
+  
+  
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="tabla foco"}
+  
+  Frecuencia<-table(neumonia$TABP_tipo)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Antibiótico usado")%>%
+    kable_styling()
+ neumonia$T_empirico_SINO <-neumonia$T_empirico.SINO.
+```    
+
+#### **Tratamiento empírico**  {#t3g}    
+  
+  Desde el diagnóstico se instauró tramiento empírico en `r table(neumonia$T_empirico)[2]` casos, es decir en el `r round((table(neumonia$T_empirico)[2]*100)/.n,1)`%.  
+  
+  
+Los tratamientos empleados fueron:   
+  
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(neumonia$Tipo_empirico)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Tratamiento empírico")%>%
+    kable_styling()
+#neumonia$T_em_combinado<-neumonia$T_em_combinado...35 
+#neumonia$T_em_mixto<-neumonia$T_em_mixto...36
+```     
+
+De todos los tratamientos empíricos, `r table(neumonia$T_em_combinado)[2]` fueron tratamientos combinados con dos o más antibióticos (`r round((table(neumonia$T_em_combinado)[2]*100)/.n,1)`%), y en `r table(neumonia$T_em_mixto)[2]` ocasiones el tratamiento fué mixto (`r round((table(neumonia$T_em_mixto)[2]*100)/.n,1)`%).  
+  
+  En cuanto al **espectro DOORMAT** de los tratamientos, se recoge en la siguiente tabla:   
+  
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia$Espectro_DOORMAT<-neumonia$Espectro_DOORMAT...37
+  Frecuencia<-table(neumonia$Espectro_DOORMAT0)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Espectro DOORMAT")%>%
+    kable_styling()
+neumonia$Actividad<-neumonia$Actividad
+```   
+
+Si se analiza la actividad de los tratamientos, encontramos que en `r table(neumonia$Actividad0)[1]` casos fueron inactivos (`r round((table(neumonia$Actividad0)[1]*100)/.n,1)`%), y en `r table(neumonia$Actividad0)[2]` casos fueron activos (`r round((table(neumonia$Actividad0)[2]*100)/.n,1)`%). 
+Sobre el resto de casos no había datos de actividad.    
+  
+[Volver al índice](#t0)    
+
+#### **Diagnóstico microbiológico**  {#t3h}   
+`r gripe<-.n-(table(neumonia$PCR_Gripe)[2])`
+A `r .n-(table(neumonia$PCR_Gripe)[2])` pacientes se les realizó **PCR para gripe** (`r round((gripe*100)/.n,1)`%). Resultaron positivos `r table(neumonia$PCR_Gripe)[3]`, el `r round((table(neumonia$PCR_Gripe)[3]*100)/.n,1)`% del total de neumonías.   
+
+`r ag<-.n-(table(neumonia$Antigeno_neumo)[2])`
+A `r ag` se les determinó el **antígeno para neumococo** (`r round((ag*100)/.n,1)`%). Resultaron positivos `r table(neumonia$Antigeno_neumo)[3]`, el `r round((table(neumonia$Antigeno_neumo)[3]*100)/.n,1)`% del total.   
+
+
+De todos los pacientes incluidos en el estudio se obtuvo una **muestra** del arbol respiratorio y se realizó estudio Gram. `r table(neumonia$Muestra)[1]` fueron aspirados bronquiales (`r round((table(neumonia$Muestra)[1]*100)/.n,1)`%). El resto (`r table(neumonia$Muestra)[2]` muestras) fueron lavados broncoalveolares.    
+
+#### **Estudio Gram**  
+
+
+Los **resultados** se muestran en la tabla siguiente:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+Frecuencia<-table(neumonia$Resultado_Gram)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Resultado del Gram")%>%
+    kable_styling()
+```   
+
+**El estudio Gram identificó microorganismos en el `r round((table(neumonia$Micoorg_Gram)[2]*100)/.n,1)`% de los casos (`r table(neumonia$Micoorg_Gram)[2]` pacientes)**.    
+
+Los microorganismos identificados, se resumen en la tabla:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+nemogram<-dplyr::filter(neumonia,Micoorg_Gram=="Si")
+Frecuencia<-table(nemogram$Tipo_microorg_Gram)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Microorganismos identificados con Gram")%>%
+    kable_styling()
+```   
+
+#### **PCR COVID-19**    
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+no_r<-table(neumonia$PCR_COVID)[2]
+pos<-table(neumonia$PCR_COVID)[3]
+neg<-table(neumonia$PCR_COVID)[1]
+covid<-pos+neg
+```
+
+A `r covid` pacientes se les realizó **PCR para COVID** (`r round((covid*100)/.n,1)`%). Resultaron positivos `r pos`, el `r round(pos*100/.n,1)`% del total de neumonías.   
+
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+Frecuencia<-table(neumonia$PCR_COVID)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="PCR para COVID-19")%>%
+    kable_styling()
+```  
+
+#### **Resultado_ADN**   
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+Frecuencia<-table(neumonia$Resultado_ADN)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Resultado ADN")%>%
+    kable_styling()
+```   
+
+#### **Resultado jirovecii**   
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+Frecuencia<-table(neumonia$Resultado_jirovecii)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Resultado jirovecii")%>%
+    kable_styling()
+```   
+
+#### **Resultado galactomanano**   
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+Frecuencia<-table(neumonia$Resultado_galactomanano)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Resultado galactomanano")%>%
+    kable_styling()
+```   
+
+###  **Diagnostico etiologico rapido**  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+Frecuencia<-table(neumonia$DER )
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="DIAGNOSTICO ETIOLOGICO RAPIDO REALIZADO")%>%
+    kable_styling()
+```    
+
+###  Resumen del Diagnostico etiologico rapido
+ 
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+Frecuencia<-table(neumonia$Diagnostico_etiologico_rapido )
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="DIAGNOSTICO ETIOLOGICO RAPIDO")%>%
+    kable_styling()
+```    
+
+## Informes provisional y final  
+
+Se emitió un **informe provisional** tras cultivo en `r table(neumonia$Provisional)[2]` casos, y, posteriormente, un informe final para todos los pacientes incluidos.   
+
+#### **Informe tras cultivo y antibiograma (informe final)**   
+
+**Finalmente se obtuvo un diagnóstico etiológico en `r table(neumonia$Diag_etiologico_cultivo)[2]` casos, es decir, en el `r round((table(neumonia$Diag_etiologico_cultivo)[2]*100)/.n,1)`% de los pacientes.**  
+
+#### **Microorganismos identificados en el informe final**   
+
+Los resultados se resumen en la tabla:    
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(neumonia$Microorganismo)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Microorganismos identificados. Informe final")%>%
+    kable_styling()
+```   
+
+[Volver al índice](#t0)
+
+### TRATAMIENTOS DIRIGIDOS TRAS PRUEBAS DIAGNOSTICAS  
+
+
+#### **Cambio de tratamiento tras prueba rápida**  {#t3i}   
+  
+```{r , echo=FALSE, warning=FALSE}
+emp<-dplyr::filter(neumonia,Cambio_Tto1==1)
+trasg<-dplyr::filter(neumonia,Cambio_Tto1==1)
+trasg<-as.data.frame(trasg)
+```
+  
+  En una primera fase se produjo un cambio de tratamiento en `r table(neumonia$Cambio_Tto1)[2]` pacientes, lo que supone el `r round((table(neumonia$Cambio_Tto1)[2]*100)/.n,1)`% de todos los pacientes.
+  
+  Los nuevos tratamientos  fueron:    
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(trasg$Tipo_dirigido1)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Tratamiento tras prueba rápida")%>%
+    kable_styling()
+  
+```    
+
+El **espectro DOORMAT** de los tratamientos tras prueba rápida fue:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+      #neumonia<-read_excel("neumonia.xlsx")
+      Frecuencia<-table(trasg$Espectro_DOORMAT1)
+      Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+      dt<-cbind(Frecuencia,Porcentaje)
+      dt %>%
+        kbl(caption="Espectro DOORMAT Cambio TTo 1")%>%
+        kable_styling()
+      #%>%
+      #footnote(general = "En tres casos se identificó flora multiple. Solo se muestran 4 #casos")
+      
+```   
+
+
+
+**SITUACION DE LOS TRATAMIENTOS (EMPIRICOS + NUEVOS) TRAS LA PRUEBA RAPIDA**
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(neumonia$Tipo_dirigido1)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Tratamiento tras prueba rápida")%>%
+    kable_styling()
+  
+```   
+
+El **espectro DOORMAT** de los tratamientos tras prueba rápida fue:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+      #neumonia<-read_excel("neumonia.xlsx")
+      Frecuencia<-table(neumonia$Espectro_DOORMAT1)
+      Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+      dt<-cbind(Frecuencia,Porcentaje)
+      dt %>%
+        kbl(caption="Espectro DOORMAT Cambio TTo 1")%>%
+        kable_styling()
+      
+```    
+
+`r table(neumonia$T_dirigido1_combinado)[2]` tratamientos (el `r round((table(neumonia$T_dirigido1_combinado)[2]*100)/.n,1)`%) tras la prueba rápida son de combinaciones de dos ó más antibióticos.   
+
+`r table(neumonia$T_dirigido1_mixto)[2]` tratamientos (el `r round((table(neumonia$T_dirigido1_mixto)[2]*100)/.n,1)`%) son asociaciones de antibióticos y antivirales o antifúngicos.  
+
+Por lo que respecta a la actividad de los antibióticos usados, `r table(neumonia$Actividad_dirigido1)[1]` resultaron inactivos.    
+
+#### **Cambio de tratamiento tras cultivo **  {#t3i2}   
+
+```{r , echo=FALSE, warning=FALSE}
+#emp<-dplyr::filter(neumonia,Cambio_Tto1=="Si")
+trasg2<-dplyr::filter(neumonia,Cambio_Tto2==1)
+trasg2<-as.data.frame(trasg2)
+```
+  
+Tras el cultivo se produjo un cambio de tratamiento en `r table(neumonia$Cambio_Tto2)[2]` pacientes, lo que supone el `r round((table(neumonia$Cambio_Tto2)[2]*100)/.n,1)`% de ellos.
+  
+Los nuevos tratamientos  fueron:   
+    
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(trasg2$Tipo_dirigido2)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Tratamiento tras Gram")%>%
+    kable_styling()
+  
+```   
+
+El **espectro DOORMAT** de los tratamientos tras cultivo fue:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+      #neumonia<-read_excel("neumonia.xlsx")
+      Frecuencia<-table(trasg2$Espectro_DOORMAT2)
+      Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+      dt<-cbind(Frecuencia,Porcentaje)
+      dt %>%
+        kbl(caption="Espectro DOORMAT Cambio TTo 2")%>%
+        kable_styling()
+      
+```     
+
+**SITUACION DE LOS TRATAMIENTOS (EMPIRICOS + NUEVOS) TRAS EL CULTIVO **
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(neumonia$Tipo_dirigido2)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Tratamiento tras cultivo")%>%
+    kable_styling()
+  
+```   
+
+El **espectro DOORMAT** de los tratamientos tras cultivo fue:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+      #neumonia<-read_excel("neumonia.xlsx")
+      Frecuencia<-table(neumonia$Espectro_DOORMAT2)
+      Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+      dt<-cbind(Frecuencia,Porcentaje)
+      dt %>%
+        kbl(caption="Espectro DOORMAT Cambio TTo 2")%>%
+        kable_styling()
+      
+```   
+
+`r table(neumonia$T_dirigido2_combinado)[2]` tratamientos (el `r round((table(neumonia$T_dirigido2_combinado)[2]*100)/.n,1)`%) tras el cultivo son de combinaciones de dos ó más antibióticos.   
+
+`r table(neumonia$T_dirigido2_mixto)[2]` tratamientos (el `r round((table(neumonia$T_dirigido2_mixto)[2]*100)/.n,1)`%) son asociaciones de antibióticos y antivirales o antifúngicos.  
+
+Por lo que respecta a la actividad de los antibióticos usados, `r table(neumonia$ACTIVO_dirigido2)[1]` resultaron inactivos.   
+
+.  
+
+La **Puntuación DOORMAT** del **tratamiento tras cultivo** muestra una media de `r round(mean(neumonia$DOORMAT2,na.rm =TRUE),1)`, con una mediana de `r median(neumonia$DOORMAT2,na.rm =TRUE)`. El valor mínimo fue `r min(neumonia$DOORMAT2, na.rm =TRUE)` y el máximo `r max(neumonia$DOORMAT2, na.rm =TRUE)`.     
+
+
+[Volver al índice](#t0)   
+
+
+#### **Cambio de tratamiento tras el informe final**  {#t3j}  
+
+```{r , echo=FALSE, warning=FALSE}
+#emp<-dplyr::filter(neumonia,Cambio_Tto1=="Si")
+trasg3<-dplyr::filter(neumonia,Cambio_Tto3==1)
+trasg3<-as.data.frame(trasg3)
+```
+  
+Tras informar el antibiograma se produjo un cambio de tratamiento en `r table(neumonia$Cambio_Tto3)[2]` pacientes, lo que supone el `r round((table(neumonia$Cambio_Tto3)[2]*100)/.n,1)`% de ellos.
+  
+Los nuevos tratamientos  fueron:   
+    
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(trasg3$Tipo_dirigido3)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Tratamiento tras Informe final")%>%
+    kable_styling()
+  
+```   
+
+El **espectro DOORMAT** de los tratamientos tras el informe final fue:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+      #neumonia<-read_excel("neumonia.xlsx")
+      Frecuencia<-table(trasg3$Espectro_DOORMAT3)
+      Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+      dt<-cbind(Frecuencia,Porcentaje)
+      dt %>%
+        kbl(caption="Espectro DOORMAT Cambio TTo 3")%>%
+        kable_styling()
+      
+```     
+
+El **perfil DOORMAT** de los tratamientos fue:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+      #neumonia<-read_excel("neumonia.xlsx")
+      Frecuencia<-table(trasg3$Perfil_DOORMAT)
+      Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+      dt<-cbind(Frecuencia,Porcentaje)
+      dt %>%
+        kbl(caption="Perfil DOORMAT Cambio TTo 3")%>%
+        kable_styling()
+      
+```     
+
+**Puntuación DOORMAT** tras antibiograma:  
+
+Media: `r round(mean(neumonia$DOORMAT3,na.rm =TRUE),1)`.   
+
+Mediana `r median(neumonia$DOORMAT3,na.rm =TRUE)`.   
+
+Mínimo: `r min(neumonia$DOORMAT3, na.rm =TRUE)`.   
+
+Máximo `r max(neumonia$DOORMAT3, na.rm =TRUE)`.      
+
+
+**SITUACION DE LOS TRATAMIENTOS (EMPIRICOS + NUEVOS) TRAS EL INFORME FINAL**
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+  #neumonia<-read_excel("neumonia.xlsx")
+  Frecuencia<-table(neumonia$Tipo_dirigido3)
+  Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+  dt<-cbind(Frecuencia,Porcentaje)
+  dt %>%
+    kbl(caption="Tratamiento tras informe final")%>%
+    kable_styling()
+  
+```   
+
+El **espectro DOORMAT** de los tratamientos tras cultivo fue:  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+      #neumonia<-read_excel("neumonia.xlsx")
+      Frecuencia<-table(neumonia$Espectro_DOORMAT3)
+      Porcentaje<-round(100*Frecuencia/sum(Frecuencia), 2)
+      dt<-cbind(Frecuencia,Porcentaje)
+      dt %>%
+        kbl(caption="Espectro DOORMAT Cambio TTo 3")%>%
+        kable_styling()
+      
+```   
+
+`r table(neumonia$T_dirigido3_combinado)[2]` tratamientos (el `r round((table(neumonia$T_dirigido3_combinado)[2]*100)/.n,1)`%) tras el Gram son de combinaciones de dos ó más antibióticos.   
+
+`r table(neumonia$T_dirigido3_mixto)[2]` tratamientos (el `r round((table(neumonia$T_dirigido3_mixto)[2]*100)/.n,1)`%) son asociaciones de antibióticos y antivirales o antifúngicos.  
+
+Por lo que respecta a la actividad de los antibióticos usados, `r table(neumonia$ACTIVO_dirigido3)[1]` resultaron inactivos.   
+
+
