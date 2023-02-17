@@ -1,0 +1,694 @@
+---
+title: "DOORMAT neumonias"
+author: "Carlos Martin Perez"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r , echo=FALSE, warning=FALSE,comment=F,include=FALSE}
+library(dplyr)
+library(knitr)
+library(dplyr)
+library(gridExtra)
+library(openintro)
+library(plotrix)
+library(formattable)
+library(MASS)
+library(ggplot2)
+library(plotly)
+library(survminer)
+library(ggsankey)
+library(circlize)
+library(readxl)
+library(pillar)
+library(kableExtra)
+library(lubridate)
+library(nlme)
+library(segmented)
+```    
+
+```{r carga2,warning=FALSE,echo=FALSE}
+neumonia<-read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/plantilla buena.xlsx",sheet=1)
+ door<- dplyr::select(neumonia,Espectro_DOORMAT0,ED0,Espectro_DOORMAT1,ED1,Espectro_DOORMAT2,ED2,Espectro_DOORMAT3,ED3, DOORMAT2, DOORMAT3,DE,Hongo,Virus,Pre_post)
+```   
+
+### Espectro DOORMAT de todos los pacientes
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+ F1<-table(door$Espectro_DOORMAT1)
+p1<-round(100*F1/sum(F1), 2)
+
+F2<-table(door$Espectro_DOORMAT2)
+p2<-round(100*F2/sum(F2), 2)
+
+F3<-table(door$Espectro_DOORMAT3)
+p3<-round(100*F3/sum(F3), 2)
+
+F0<-table(door$Espectro_DOORMAT0)
+p0<-round(100*F0/sum(F0), 2)
+
+
+
+table_DOORMAT<-matrix(c(F0[1],p0[1],F1[1],p1[1],F2[1],p2[1],F3[1],p3[1],
+                        F0[2],p0[2],F1[2],p1[2],F2[2],p2[2],F3[2],p3[1],
+                        0,    0,    F1[3],p1[3],0,    0,    0,    0,
+                        F0[3],p0[3],F1[4],p1[4],F2[3],p2[3],F3[3],p3[3],
+                        F0[4],p0[4],F1[5],p1[5],F2[4],p2[4],F3[4],p3[4],
+                        F0[5],p0[5],F1[6],p1[6],F2[5],p2[5],F3[5],p3[5],
+                        0,    0,    F1[7],p1[7],F2[6],p2[6],F3[6],p3[6],
+                        F0[6],p0[6],F1[8],p1[8],F2[7],p2[7],F3[7],p3[7],
+                        F0[7],p0[7],0,    0,    0,    0,    F3[8],p3[8],
+                        sum(F0),100,sum(F1),100,sum(F2),100,sum(F3),100),ncol = 8,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje",
+                           "Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","Antifúngico","Antiviral", "I","II","III","III + Antifungico", "IV","V","n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+table_DOORMAT[is.na(table_DOORMAT)] <- 0
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"T. empírico" = 2,"P. rápida"=2 , "I. provisional" = 2, "I. Definitivo"=2))
+          
+```   
+
+### Espectro DOORMAT solo para pacientes comunes  
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+door2<-na.omit(door)
+
+F1<-table(door2$Espectro_DOORMAT1)
+p1<-round(100*F1/sum(F1), 2)
+
+F2<-table(door2$Espectro_DOORMAT2)
+p2<-round(100*F2/sum(F2), 2)
+
+F3<-table(door2$Espectro_DOORMAT3)
+p3<-round(100*F3/sum(F3), 2)
+
+F0<-table(door2$Espectro_DOORMAT0)
+p0<-round(100*F0/sum(F0), 2)
+
+table_DOORMAT<-matrix(c( F0[1],p0[1],0,    0,    0,    0,    0,    0,
+                         F0[2],p0[2],F1[1],p1[1],F2[1],p2[1],F3[1],p3[1],
+                        
+                         F0[3],p0[3],F1[2],p1[2],F2[2],p2[2],F3[2],p3[2],
+                         F0[4],p0[4],F1[3],p1[3],F2[3],p2[3],F3[3],p3[3],
+                         0,   0,    F1[4],p1[4],F2[4],p2[4],F3[4],p3[4],
+                         F0[5],p0[5],F1[5],p1[5],F2[5],p2[5],F3[5],p3[5],
+                         0,    0,    0,    0,    0,    0,    F3[6],p3[6],
+                        
+                        sum(F0),100,sum(F1),100,sum(F2),100,sum(F3),100),ncol = 8,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje",
+                           "Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","I","II","III","III + Antifungico", "IV","V","n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+table_DOORMAT[is.na(table_DOORMAT)] <- 0
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"T. empírico" = 2,"P. rápida"=2 , "I. provisional" = 2, "I. Definitivo"=2))
+          
+```    
+
+### Espectro DOORMAT para neumonías bacterianas  
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+
+
+door3<-dplyr::filter(door,Hongo==0 & Virus==0)
+
+F1<-table(door3$Espectro_DOORMAT1)
+p1<-round(100*F1/sum(F1), 2)
+
+F2<-table(door3$Espectro_DOORMAT2)
+p2<-round(100*F2/sum(F2), 2)
+
+F3<-table(door3$Espectro_DOORMAT3)
+p3<-round(100*F3/sum(F3), 2)
+
+F0<-table(door3$Espectro_DOORMAT0)
+p0<-round(100*F0/sum(F0), 2)
+
+table_DOORMAT<-matrix(c( F0[1],p0[1],F1[1],p1[1], F2[1],p2[1],F3[1],p3[1],
+                         F0[2],p0[2],F1[2],p1[2],F2[2],p2[2],F3[2],p3[2],
+                        
+                         F0[3],p0[3],F1[3],p1[3],F2[3],p2[3],F3[3],p3[3],
+                         F0[4],p0[4],F1[4],p1[4],F2[4],p2[4],F3[4],p3[4],
+                         F0[5],p0[5],F1[5],p1[5],F2[5],p2[5],F3[5],p3[5],
+                         F0[6],p0[6],0    ,0    ,0    ,0    ,F3[6],p3[6],
+                        
+                        sum(F0),100,sum(F1),100,sum(F2),100,sum(F3),100),ncol = 8,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje",
+                           "Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","I","II","III", "IV","V","n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+table_DOORMAT[is.na(table_DOORMAT)] <- 0
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"T. empírico" = 2,"P. rápida"=2 , "I. provisional" = 2, "I. Definitivo"=2))
+          
+```    
+
+### Espectro DOORMAT para pacientes comunes (sin faltantes) con neumonías bacterianas   
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+
+
+door4<-na.omit(door3)
+
+F1<-table(door4$Espectro_DOORMAT1)
+p1<-round(100*F1/sum(F1), 2)
+
+F2<-table(door4$Espectro_DOORMAT2)
+p2<-round(100*F2/sum(F2), 2)
+
+F3<-table(door4$Espectro_DOORMAT3)
+p3<-round(100*F3/sum(F3), 2)
+
+F0<-table(door4$Espectro_DOORMAT0)
+p0<-round(100*F0/sum(F0), 2)
+
+table_DOORMAT<-matrix(c( F0[1],p0[1],0,0,0,0,0,0,
+                         F0[2],p0[2],F1[1],p1[1],F2[1],p2[1],F3[1],p3[1],
+                        
+                         F0[3],p0[3],F1[2],p1[2],F2[2],p2[2],F3[2],p3[2],
+                         F0[4],p0[4],F1[3],p1[3],F2[3],p2[3],F3[3],p3[3],
+                         F0[5],p0[5],F1[4],p1[4],F2[4],p2[4],F3[4],p3[4],
+                         0,0,0    ,0    ,0    ,0    ,F3[5],p3[5],
+                        
+                        sum(F0),100,sum(F1),100,sum(F2),100,sum(F3),100),ncol = 8,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje",
+                           "Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","I","II","III", "IV","V","n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+table_DOORMAT[is.na(table_DOORMAT)] <- 0
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"T. empírico" = 2,"P. rápida"=2 , "I. provisional" = 2, "I. Definitivo"=2))
+          
+```      
+
+***DIAGRAMAS DE FLUJO***\
+**Evolución de las categorías del espectro DOOR-MAT para todos los pacientes**
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+df <- door %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+            ) #transforma el fichero en formato largo
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT",subtitle = "En las cuatro etapas del tratamiento")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR")
+```
+
+**Evolución de las categorías del espectro DOOR-MAT para los pacientes sin datos faltantes**
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+df <- door2 %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+            ) #transforma el fichero en formato largo
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT",subtitle = "En las cuatro etapas del tratamiento")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR")
+```     
+
+**Evolución de las categorías del espectro DOOR-MAT para neumonias bacterianas**
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+df <- door3 %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+            ) #transforma el fichero en formato largo
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT en neumonias bacterianas",subtitle = "En las cuatro etapas del tratamiento")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR")
+```
+
+**Evolución de las categorías del espectro DOOR-MAT para los pacientes sin datos faltantes**
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+df <- door4 %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+            ) #transforma el fichero en formato largo
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT en neumonías bacterianas",subtitle = "En las cuatro etapas del tratamiento sin datos faltantes")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR")
+```     
+
+## Periodos pre y post intervención  
+
+### Tratamiento empírico  
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+doorpre<-dplyr::filter(door,Pre_post==1)
+doorpost<-dplyr::filter(door,Pre_post==2)
+
+F0pre<-table(doorpre$Espectro_DOORMAT0)
+p0pre<-round(100*F0pre/sum(F0pre), 2)
+
+F0post<-table(doorpost$Espectro_DOORMAT0)
+p0post<-round(100*F0post/sum(F0post), 2)
+
+table_DOORMAT<-matrix(c( 0,0,F0post[1],p0post[1],
+                         0,0,F0post[2],p0post[2],
+                         F0pre[1],p0pre[1],F0post[3],p0post[3],
+                         F0pre[2],p0pre[2],F0post[4],p0post[4],
+                         F0pre[3],p0pre[3],F0post[5],p0post[5],
+                         F0pre[4],p0pre[4], F0post[6],p0post[6],
+                         F0pre[5],p0pre[5],0,0,
+                        sum(F0pre),100,sum(F0post),100),ncol = 4,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","Antifungico" ,"I","II","III", "IV","V","n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT del tratamiento empírico")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"Pre intervención" = 2,"Post intervención"=2 ))
+```  
+
+### Tratamiento tras prueba rápida 
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+doorpre<-dplyr::filter(door,Pre_post==1)
+doorpost<-dplyr::filter(door,Pre_post==2)
+
+F0pre<-table(doorpre$Espectro_DOORMAT1)
+p0pre<-round(100*F0pre/sum(F0pre), 2)
+
+F0post<-table(doorpost$Espectro_DOORMAT1)
+p0post<-round(100*F0post/sum(F0post), 2)
+
+table_DOORMAT<-matrix(c( F0pre[1],p0pre[1],0,0,
+                         0,0,F0post[1],p0post[1],
+                         0,0,F0post[2],p0post[2],
+                         F0pre[2],p0pre[2],F0post[3],p0post[3],
+                         F0pre[3],p0pre[3],F0post[4],p0post[4],
+                         F0pre[4],p0pre[4], F0post[5],p0post[5],
+                         0,0,F0post[6],p0post[6],
+                         F0pre[5],p0pre[5],F0post[7],p0post[7],
+                         
+                        sum(F0pre),100,sum(F0post),100),ncol = 4,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","Antifungico" ,"Antiviral","I","II","III","III +Antifungico", "IV","n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT del tratamiento tras prueba rápida")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"Pre intervención" = 2,"Post intervención"=2 ))
+```  
+
+### Tratamiento tras informe provisional 
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+doorpre<-dplyr::filter(door,Pre_post==1)
+doorpost<-dplyr::filter(door,Pre_post==2)
+
+F0pre<-table(doorpre$Espectro_DOORMAT2)
+p0pre<-round(100*F0pre/sum(F0pre), 2)
+
+F0post<-table(doorpost$Espectro_DOORMAT2)
+p0post<-round(100*F0post/sum(F0post), 2)
+
+table_DOORMAT<-matrix(c( 0,0,              F0post[1],p0post[1],
+                         0,0,              F0post[2],p0post[2],
+                         F0pre[1],p0pre[1],F0post[3],p0post[3],
+                         F0pre[2],p0pre[2],F0post[4],p0post[4],
+                         F0pre[3],p0pre[3],F0post[5],p0post[5],
+                         0,0,              F0post[6],p0post[6],
+                         F0pre[4],p0pre[4],F0post[7],p0post[7],
+                         
+                         
+                        sum(F0pre),100,sum(F0post),100),ncol = 4,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","Antifungico" ,"I","II","III","III +Antifungico", "IV","n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT del tratamiento tras el informe provisional")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"Pre intervención" = 2,"Post intervención"=2 ))
+```  
+
+### Tratamiento tras informe definitivo 
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+doorpre<-dplyr::filter(door,Pre_post==1)
+doorpost<-dplyr::filter(door,Pre_post==2)
+
+F0pre<-table(doorpre$Espectro_DOORMAT3)
+p0pre<-round(100*F0pre/sum(F0pre), 2)
+
+F0post<-table(doorpost$Espectro_DOORMAT3)
+p0post<-round(100*F0post/sum(F0post), 2)
+
+table_DOORMAT<-matrix(c( 0,0,              F0post[1],p0post[1],
+                         0,0,              F0post[2],p0post[2],
+                         F0pre[1],p0pre[1],F0post[3],p0post[3],
+                         F0pre[2],p0pre[2],0,0,
+                         F0pre[3],p0pre[3],F0post[4],p0post[4],
+                         0,0,              F0post[5],p0post[5],
+                         F0pre[4],p0pre[4],F0post[6],p0post[6],
+                         F0pre[5],p0pre[5],0,0,
+                         
+                        sum(F0pre),100,sum(F0post),100),ncol = 4,byrow = T)
+colnames(table_DOORMAT)<-c("Frecuencia", "Porcentaje","Frecuencia", "Porcentaje")
+rownames(table_DOORMAT)<-c("0","Antifungico" ,"I","II","III","III +Antifungico", "IV","V", "n")
+table_DOORMAT<-as.data.frame(table_DOORMAT)
+
+dt<-table_DOORMAT
+dt %>%
+  #kbl()%>%
+  kbl(caption="Frecuencias y porcentajes espectro DOORMAT del tratamiento tras el informe definitivo")%>%
+  kable_styling(full_width = T)%>%
+  
+  add_header_above(c(" "=1,"Pre intervención" = 2,"Post intervención"=2 ))
+```  
+
+### ¿Existen diferencias significativas entre el espectro doormat de las distintas fases del tratamiento? 
+
+**ANALISIS PARA NEUMONIAS BACTERIANAS**  
+
+FRIEDMAN  
+
+```{r , echo=FALSE, warning=FALSE,caption="puntuacion DOORMAT",comment=""} 
+
+doorfried2 <- read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/plantilla buena.xlsx",sheet=2)
+
+#friedman.test(ESPECTRO ~ PUNTO|id, doorfried2)
+friedman.test(doorfried2$ESPECTRO,doorfried2$PUNTO,doorfried2$id)
+
+```     
+
+ANOVA  
+
+```{r , echo=FALSE, warning=FALSE,caption="puntuacion DOORMAT",comment=""} 
+
+rpulse <- rank(doorfried2$ESPECTRO)
+
+lme.rank <- lme(fixed = rpulse ~ PUNTO, random =~1|id, data=doorfried2)
+anova(lme.rank)
+```     
+
+
+
+### ¿Existen diferencias significativas entre el espectro doormat de los tratamientos de las neumonías bacterianas en los periodos pre y post intervención?
+
+**ANALISIS PARA NEUMONIAS BACTERIANAS**   
+
+
+```{r , echo=FALSE, warning=FALSE,results='asis',message=FALSE}
+library(crosstable)
+library(flextable)
+door3$ED0<-as.factor(door3$ED0)
+door3$ED1<-as.factor(door3$ED1)
+door3$ED2<-as.factor(door3$ED2)
+door3$ED3<-as.factor(door3$ED3)
+
+door3_labels=read.table(header=TRUE,text="name label
+                        ED0 'T. empirico'
+                        ED1 'Prueba rápida'
+                        ED2 'Informe provisional'
+                        ED3 'Informe final'")
+door3b=door3 %>%
+  import_labels(door3_labels, name_from="name", label_from="label") %>% 
+  as_tibble()
+
+crosstable(door3b, c(ED0,ED1,ED2,ED3), by=Pre_post,
+           percent_digits=0, percent_pattern="{n} ({p_col})",
+            test=TRUE) %>%
+  as_flextable(keep_id=TRUE)
+```    
+
+## **Puntuacion DOORMAT**
+
+El resumen de las puntuaciones se muestra en la siguiente tabla:
+
+```{r , echo=FALSE, warning=FALSE,results='asis',caption="espectro DOORMAT"}
+
+#####################
+#puntuacion Doormat
+#####################
+door$DOORMAT2<-as.numeric(door$DOORMAT2)
+door$DOORMAT3<-as.numeric(door$DOORMAT3)
+#mat1<-summary(door$DOORMAT1,na.rm=T)
+mat2<-summary(door$DOORMAT2,na.rm=T )
+mat3<-summary(door$DOORMAT3,na.rm=T)
+#mat1a<-dplyr::filter(door,!is.na(DOORMAT1))
+mat2a<-dplyr::filter(door,!is.na(DOORMAT2))
+mat3a<-dplyr::filter(door,!is.na(DOORMAT3))
+mattable<-matrix(c(#mat1[1],mat1[3],round(mat1[4],2),mat1[6],dim(mat1a)[1],
+                   mat2[1],mat2[3],round(mat2[4],2),mat2[6],dim(mat2a)[1],
+                   mat3[1],mat3[3],round(mat3[4],2),mat3[6],dim(mat3a)[1]),ncol = 5,byrow = T)
+colnames(mattable)<-c("Min","Mediana","Media","Max", "n")
+rownames(mattable)<-c("Puntuación DOORMAT 2","Puntuación DOORMAT 3")
+
+mattable%>%
+  kbl(caption="puntuación DOORMAT")%>%
+  kable_styling()
+
+```
+
+Las puntuaciones DOORMAT son variables numéricas pareadas, por ello utilizaremos la prueba de Wilcoxon para muestras relacionadas.
+
+```{r , echo=FALSE, warning=FALSE,caption="puntuacion DOORMAT",comment=""}
+
+ wilcox.test (door$DOORMAT2,door$DOORMAT3, paired = TRUE, Alternative = "two.sided")
+ 
+```    
+
+Las puntuaciones DOORMAT 2 y DOORMAT 3 son significativamente diferentes. La puntuación DOORMAT 3 es significativamente mayor que la DOORMAT 2.  
+
+### Puntuación DOORMAT según periodo  
+
+Analizamos la evolución temporal de los tiempos de respuesta utilizando el paquete segmented. Así, para cada variable temporal obtendremos una regresion del tipo segmented y su correspondiente gráfico.  Como medida de resumen utilizamos la mediana de los tiempos de respuesta en cada periodo.  
+
+
+**Con Mediana como medida resumen**  
+
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+#__________________________________
+gm1<-grupo %>% summarise( mediana = median(DOORMAT2,na.rm = T))
+gm1<- na.omit(gm1)
+
+lm1 <- lm(mediana  ~ Periodo, data = gm1)
+slm1<-summary(lm1)
+
+my.seg1 <- segmented(lm1 )
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+#kable(smst1,digits=4)
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm1$Periodo,mediana = my.fitted1)
+
+p1<- ggplot(gm1, aes(x = Periodo, y = mediana )) +
+  geom_point(color="grey50")+
+  ggtitle("Puntuación DOORMAT 1")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 118,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+#p1  
+##################################
+gm2<-grupo %>% summarise( mediana = median(DOORMAT3,na.rm = T))
+gm2<- na.omit(gm2)
+
+lm2 <- lm(mediana  ~ Periodo, data = gm2)
+slm2<-summary(lm2)
+
+my.seg2 <- segmented(lm2 )
+sms2<-summary(my.seg2)
+smst2<-sms2$coefficients
+#kable(smst2,digits=4)
+pvalor2<-paste("p valor = ",round(smst2[8],4))
+
+my.fitted2 <- fitted(my.seg2)
+
+model2 <- data.frame(Periodo = gm2$Periodo,mediana = my.fitted2)
+
+p2<- ggplot(gm2, aes(x = Periodo, y = mediana )) +
+  geom_point(color="grey50")+
+  ggtitle("Puntuación DOORMAT 2")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model2$Periodo,y=model2$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 39,
+                label = pvalor2),
+            stat = "unique",
+            color = "peru")
+#p2  
+
+``` 
+
+```{r , echo=FALSE, warning=FALSE}
+
+grid.arrange(p1,p2, nrow = 1)
+```    
+
+**Con Media como medida resumen**  
+
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+#__________________________________
+gm1<-grupo %>% summarise( media = mean(DOORMAT2,na.rm = T))
+gm1<- na.omit(gm1)
+
+lm1 <- lm(media  ~ Periodo, data = gm1)
+slm1<-summary(lm1)
+
+my.seg1 <- segmented(lm1 )
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+#kable(smst1,digits=4)
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm1$Periodo,media = my.fitted1)
+
+p1<- ggplot(gm1, aes(x = Periodo, y = media )) +
+  geom_point(color="grey50")+
+  ggtitle("Puntuación DOORMAT 1")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$media ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 118,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+#p1  
+##################################
+gm2<-grupo %>% summarise( media = mean(DOORMAT3,na.rm = T))
+gm2<- na.omit(gm2)
+
+lm2 <- lm(media  ~ Periodo, data = gm2)
+slm2<-summary(lm2)
+
+my.seg2 <- segmented(lm2 )
+sms2<-summary(my.seg2)
+smst2<-sms2$coefficients
+#kable(smst2,digits=4)
+pvalor2<-paste("p valor = ",round(smst2[8],4))
+
+my.fitted2 <- fitted(my.seg2)
+
+model2 <- data.frame(Periodo = gm2$Periodo,media = my.fitted2)
+
+p2<- ggplot(gm2, aes(x = Periodo, y = media )) +
+  geom_point(color="grey50")+
+  ggtitle("Puntuación DOORMAT 2")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model2$Periodo,y=model2$media ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 39,
+                label = pvalor2),
+            stat = "unique",
+            color = "peru")
+#p2  
+
+``` 
+
+```{r , echo=FALSE, warning=FALSE}
+
+grid.arrange(p1,p2, nrow = 1)
+```   
+
+## Asociación entre puntuación DOORMAT y periodo pre - post
+```{r , echo=FALSE, warning=FALSE}
+
+neumonia$Pre_post<-as.factor(neumonia$Pre_post)
+
+pk1<-ggplot(neumonia, aes(x =Pre_post, y = DOORMAT2))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ylim(30,110)+
+  ggtitle("DOORMAT 2 ")
+
+
+pk2<-ggplot(neumonia, aes(x =Pre_post, y = DOORMAT3))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ylim(30,110)+
+  ggtitle("DOORMAT 3 ")
+
+
+pk1
+pk2
+
+
+```     
