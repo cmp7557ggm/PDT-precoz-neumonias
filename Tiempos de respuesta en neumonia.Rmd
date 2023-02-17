@@ -9,22 +9,1745 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r , echo=FALSE, warning=FALSE,comment=F,include=FALSE}
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+library(dplyr)
+library(knitr)
+library(gridExtra)
+library(openintro)
+library(formattable)
+library(MASS)
+library(ggplot2)
+library(readxl)
+library(pillar)
+library(kableExtra)
+library(lubridate)
+library(segmented)
+library(xtable)
+library(ggpubr)
 ```
 
-## Including Plots
+En esta sección se analizan los periodos de tiempo transcurridos desde el diagnóstico inicial de neumonia hasta determinados eventos.
 
-You can also embed plots, for example:
+Los puntos de interés desde el punto de vista clínico serán el inicio del tratamiento empírico,  el comienzo de los tres tratamientos dirigidos tras los distintos informes microbiológicos , y el alta o fallecimiento del paciente.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+Dentro del circuito de microbiología interesa conocer el tiempo transcurrido desde el diagnóstico hasta la recepción de la muestra  en el laboratorio, el tiempo hasta el informe de la prueba rápida, el tiempo hasta que se produce el diagnóstico etiológico y el tiempo transcurrido hasta el informe final.  
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### Tiempos clínicos
+
+```{r , echo=FALSE, warning=FALSE,include=FALSE}
+library(lubridate)
+
+neumonia<-read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/plantilla buena.xlsx",sheet=1)
+
+
+emp<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_empirico)))
+emp<-ifelse(emp<0,0,emp)
+emp<-round(emp/3600,1)
+
+neumonia$emp<-emp
+
+
+recepcion<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_recepcion)))
+recepcion<-ifelse(recepcion<0,0,recepcion)
+recepcion<-round(recepcion/3600,1)
+neumonia$recepcion<-recepcion
+
+
+rapida<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_h_rapido)))
+rapida<-ifelse(rapida<0,0,rapida)
+rapida<-round(rapida/3600,1)
+neumonia$rapida<-rapida 
+
+rapida_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_rapido)))
+rapida_cruda<-ifelse(rapida<0,0,rapida_cruda)
+rapida_cruda<-round(rapida_cruda/3600,1)
+neumonia$rapida_cruda<-rapida_cruda
+
+
+diagetiol<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$fecha_diag_etiol_verdad)))
+diagetiol<-ifelse(diagetiol<0,0,diagetiol)
+diagetiol<-round(diagetiol/3600,1)
+neumonia$diagetiol<-diagetiol
+
+diagetiol_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$fecha_diag_etiol_verdad)))
+diagetiol_cruda<-ifelse(diagetiol_cruda<0,0,diagetiol_cruda)
+diagetiol_cruda<-round(diagetiol_cruda/3600,1)
+neumonia$diagetiol_cruda<-diagetiol_cruda
+ 
+
+diagetiol2<-as.duration(as.period(interval(neumonia$Fecha_h_rapido , neumonia$fecha_diag_etiol_verdad)))
+diagetiol2<-ifelse(diagetiol2<0,0,diagetiol2)
+diagetiol2<-round(diagetiol2/3600,1)
+neumonia$diagetiol2<-diagetiol2
+ 
+
+
+final<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_h_resultado_final)))
+final<-ifelse(final<0,0,final)
+final<-round(final/3600,1)
+neumonia$final<-final  
+
+final_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_resultado_final)))
+final_cruda<-ifelse(final_cruda<0,0,final_cruda)
+final_cruda<-round(final_cruda/3600,1)
+neumonia$final_cruda<-final_cruda
+
+
+alta<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_h_alta)))
+alta<-ifelse(alta<0,0,alta)
+alta<-round(alta/3600,1)
+neumonia$alta<-alta
+
+alta_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_alta)))
+alta_cruda<-ifelse(alta_cruda<0,0,alta_cruda)
+alta_cruda<-round(alta_cruda/3600,1)
+neumonia$alta_cruda<-alta_cruda
+
+
+provi<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_h_provi)))
+provi<-ifelse(provi<0,0,provi)
+provi<-round(provi/3600,1)
+neumonia$provi<-provi  
+
+provi_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_h_provi)))
+provi_cruda<-ifelse(provi_cruda<0,0,provi_cruda)
+provi_cruda<-round(provi_cruda/3600,1)
+neumonia$provi_cruda<-provi_cruda
+
+
+cambiodat<-as.duration(as.period(interval(neumonia$Fecha_h_recepcion , neumonia$Fecha_cambio)))
+cambiodat<-ifelse(cambiodat<0,0,cambiodat)
+cambiodat<-round(cambiodat/3600,1)
+neumonia$cambiodat<-cambiodat
+
+cambiodat_cruda<-as.duration(as.period(interval(neumonia$Fecha_h_neumo , neumonia$Fecha_cambio)))
+cambiodat_cruda<-ifelse(cambiodat_cruda<0,0,cambiodat_cruda)
+cambiodat_cruda<-round(cambiodat_cruda/3600,1)
+neumonia$cambiodat_cruda<-cambiodat_cruda
+
+neumonia<-mutate(neumonia,cambiodat24=cambiodat/24,
+           provi24=provi/24,
+           alta24=alta/24,
+           final24=final/24,
+           diagetiol24=diagetiol/24,
+           diagetiol224=diagetiol2/24,
+           rapida24=rapida/24,
+           recepcion24=recepcion/24,
+           emp24=emp/24)
+
+sub_neumo<-dplyr::filter(neumonia, DE==1)
+sub_neumo<-dplyr::filter(sub_neumo, Hongo==0)
+
+
+
+```    
+
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+
+tabla1<-matrix(c(
+round(mean(emp,na.rm=T),1),median(emp,na.rm=T),min(emp,na.rm=T),max(emp,na.rm=T),
+
+round(mean(cambiodat,na.rm=T),1),median(cambiodat,na.rm=T),min(cambiodat,na.rm=T),max(cambiodat,na.rm=T),
+round(mean(alta,na.rm=T),1),median(alta,na.rm=T),min(alta,na.rm=T),max(alta,na.rm=T)
+),ncol=4,byrow = T)
+colnames(tabla1)<- c("Media","Mediana","Mínimo","Máximo")
+
+rownames(tabla1)<-c("Diagnóstico -> tto. empírico",
+
+"Diagnóstico -> cualquier cambio de tratamiento","Diagnóstico -> alta o exitus"
+)
+
+
+
+
+tabla1b<-matrix(c(
+round(mean(neumonia$emp24,na.rm=T),1),round(median(neumonia$emp24,na.rm=T),1),round(min(neumonia$emp24,na.rm=T),1),round(max(neumonia$emp24,na.rm=T),1),
+
+round(mean(neumonia$cambiodat24,na.rm=T),1),round(median(neumonia$cambiodat24,na.rm=T),1),round(min(neumonia$cambiodat24,na.rm=T),1),round(max(neumonia$cambiodat24,na.rm=T),1),
+round(mean(neumonia$alta24,na.rm=T),1),round(median(neumonia$alta24,na.rm=T),1),round(min(neumonia$alta24,na.rm=T),1),round(max(neumonia$alta24,na.rm=T),1)
+),ncol=4,byrow = T)
+colnames(tabla1b)<- c("Media","Mediana","Mínimo","Máximo")
+
+rownames(tabla1b)<-c("Diagnóstico -> tto. empírico",
+"Diagnóstico -> cualquier cambio de tratamiento","Diagnóstico -> alta o exitus"
+)
+
+
+tabla2<-matrix(c( round(mean(recepcion,na.rm=T),1),median(recepcion,na.rm=T),min(recepcion,na.rm=T),max(recepcion,na.rm=T),
+
+round(mean(rapida,na.rm=T),1),median(rapida,na.rm=T),min(rapida,na.rm=T),max(rapida,na.rm=T),
+
+round(mean(provi,na.rm=T),1),median(provi,na.rm=T),min(provi,na.rm=T),max(provi,na.rm=T),
+
+round(mean(diagetiol,na.rm=T),1),median(diagetiol,na.rm=T),min(diagetiol,na.rm=T),max(diagetiol,na.rm=T),
+
+round(mean(diagetiol2,na.rm=T),1),median(diagetiol2,na.rm=T),min(diagetiol2,na.rm=T),max(diagetiol2,na.rm=T),
+
+round(mean(final,na.rm=T),1),median(final,na.rm=T),min(final,na.rm=T),max(final,na.rm=T)),ncol=4,byrow = T)
+
+colnames(tabla2)<- c("Media","Mediana","Mínimo","Máximo")
+
+rownames(tabla2)<-c( "Desde diagnóstico a recepcion muestra","Diagnóstico -> informe rapido","Diagnóstico -> informe provisional","Diagnóstico -> diagnóstico etiológico","Prueba rápida <- diagnóstico etiológico" , "Diagnóstico -> informe final")
+
+tabla1%>%
+kbl(caption="Tiempos medidos en horas")%>%
+kable_styling()  
+
+tabla1b%>%
+kbl(caption="Tiempos medidos en días")%>%
+kable_styling()
+
+```    
+
+### Tiempos en el circuito de Microbiología
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+
+tabla2%>%
+  kbl(caption="Tiempos medidos en horas")%>%
+  kable_styling()
+
+
+tabla2b<-matrix(c(round(mean(neumonia$recepcion24,na.rm=T),1),round(median(neumonia$recepcion24,na.rm=T),1),round(min(neumonia$recepcion24,na.rm=T),1),round(max(neumonia$recepcion24,na.rm=T),1),
+                  
+                  round(mean(neumonia$rapida24,na.rm=T),1),round(median(neumonia$rapida24,na.rm=T),1),round(min(neumonia$rapida24,na.rm=T),1),round(max(neumonia$rapida24,na.rm=T),1),
+                  
+                  round(mean(neumonia$provi24,na.rm=T),1),round(median(neumonia$provi24,na.rm=T),1),round(min(neumonia$provi24,na.rm=T),1),round(max(neumonia$provi24,na.rm=T),1),
+                  
+                  round(mean(neumonia$diagetiol24,na.rm=T),1),round(median(neumonia$diagetiol24,na.rm=T),1),round(min(neumonia$diagetiol24,na.rm=T),1),round(max(neumonia$diagetiol24,na.rm=T),1),
+                  
+                  round(mean(neumonia$diagetiol224,na.rm=T),1),round(median(neumonia$diagetiol224,na.rm=T),1),round(min(neumonia$diagetiol224,na.rm=T),1),round(max(neumonia$diagetiol224,na.rm=T),1),
+                  
+                  round(mean(neumonia$final24,na.rm=T),1),round(median(neumonia$final24,na.rm=T),1),round(min(neumonia$final24,na.rm=T),1),round(max(neumonia$final24,na.rm=T),1)),ncol=4,byrow = T)
+
+colnames(tabla2b)<- c("Media","Mediana","Mínimo","Máximo")
+
+rownames(tabla2b)<-c( "Desde diagnóstico a recepcion muestra","Diagnóstico -> informe rapido","Diagnóstico -> informe provisional","Diagnóstico -> diagnóstico etiológico","Prueba rápida -> diagnóstico etiológico" , "Diagnóstico -> informe final")
+
+tabla2b%>%
+  kbl(caption="Tiempos medidos en días")%>%
+  kable_styling()
+```    
+
+### Tiempos pre y post intervención  
+
+**CIRCUITO CLINICA**  
+  
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+
+neumo_pre<-dplyr::filter(neumonia,Pre_post==1)
+neumo_post<-dplyr::filter(neumonia,Pre_post==2)
+sub_neumo_pre<-dplyr::filter(sub_neumo,Pre_post==1)
+sub_neumo_post<-dplyr::filter(sub_neumo,Pre_post==2)
+
+tabla1_prepos<-matrix(c(
+  round(mean(neumo_pre$emp,na.rm=T),1),round(median(neumo_pre$emp,na.rm=T),1),round(mean(neumo_post$emp,na.rm=T),1),round(median(neumo_post$emp,na.rm=T),1),
+  
+  round(mean(neumo_pre$rapida,na.rm=T),1),round(median(neumo_pre$rapida,na.rm=T),1), round(mean(neumo_post$rapida,na.rm=T),1),round(median(neumo_post$rapida,na.rm=T),1),
+  
+  round(mean(sub_neumo_pre$cambiodat,na.rm=T),1),round(median(sub_neumo_pre$cambiodat,na.rm=T),1), round(mean(sub_neumo_post$cambiodat,na.rm=T),1),round(median(sub_neumo_post$cambiodat,na.rm=T),1),
+  
+  round(mean(neumo_pre$alta,na.rm=T),1),round(median(neumo_pre$alta,na.rm=T),1), round(mean(neumo_post$alta,na.rm=T),1),round(median(neumo_post$alta,na.rm=T),1)
+  
+),ncol=4,byrow = T)
+colnames(tabla1_prepos)<- c("Media","Mediana","Media","Mediana")
+
+rownames(tabla1_prepos)<-c("Diagnóstico -> tto. empírico","Diagnóstico -> Prueba rápida",
+                           
+                           "Diagnóstico -> cualquier cambio de tratamiento","Diagnóstico -> alta o exitus"
+)
+tabla1_prepos%>%
+  kbl(caption="Tiempos medidos en horas")%>%
+  kable_styling()%>%  
+  add_header_above(c(" " = 1, "Preintervención" = 2, "Postintervención" = 2))
+```     
+
+**CIRCUITO LABORATORIO**  
+
+Tiempos para los pacientes en los que se identifican virus o  bacterias ( se excluyen hongos)  
+
+```{r , echo=FALSE, warning=FALSE,results='asis'}
+tabla2_prepos<-matrix(c(
+  round(mean(sub_neumo_pre$recepcion,na.rm=T),1),round(median(sub_neumo_pre$recepcion,na.rm=T),1),round(mean(sub_neumo_post$recepcion,na.rm=T),1),round(median(sub_neumo_post$recepcion,na.rm=T),1),
+  
+  round(mean(sub_neumo_pre$provi,na.rm=T),1),round(median(sub_neumo_pre$provi,na.rm=T),1), round(mean(sub_neumo_post$provi,na.rm=T),1),round(median(sub_neumo_post$provi,na.rm=T),1),
+  
+  round(mean(sub_neumo_pre$diagetiol,na.rm=T),1),round(median(sub_neumo_pre$diagetiol,na.rm=T),1), round(mean(sub_neumo_post$diagetiol,na.rm=T),1),round(median(sub_neumo_post$diagetiol,na.rm=T),1),
+  
+  round(mean(sub_neumo_pre$diagetiol2,na.rm=T),1),round(median(sub_neumo_pre$diagetiol2,na.rm=T),1), round(mean(sub_neumo_post$diagetiol2,na.rm=T),1),round(median(sub_neumo_post$diagetiol2,na.rm=T),1),
+  
+  round(mean(sub_neumo_pre$final,na.rm=T),1),round(median(sub_neumo_pre$final,na.rm=T),1), round(mean(sub_neumo_post$final,na.rm=T),1),round(median(sub_neumo_post$final,na.rm=T),1)
+),ncol=4,byrow = T)
+colnames(tabla2_prepos)<- c("Media","Mediana","Media","Mediana")
+
+rownames(tabla2_prepos)<-c("Diagnóstico -> recepción","Diagnóstico -> Informe provisional","Diagnóstico -> Diagnostico etiologico",
+                           "Prueba rápida-> Diagnostico etiologico",
+                           "Diagnóstico -> Informe final"
+)
+tabla2_prepos%>%
+  kbl(caption="Tiempos medidos en horas")%>%
+  kable_styling()%>%  
+  add_header_above(c(" " = 1, "Preintervención" = 2, "Postintervención" = 2))
+
+```      
+
+
+## Series temporales segun periodo  
+
+### Tiempo  desde la recepción de la muestra hasta el alta o exitus del paciente  
+
+**Nube de puntos**   
+
+Se muestra un diagrama de dispersion con los pacientes ordenados (Index) por periodos  
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$alta24)
+```  
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**  
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-neumonia %>% group_by(Periodo)
+gm_alta<-grupo %>% summarise( mediana = median(alta))
+gm_alta<- na.omit(gm_alta)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_alta)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_alta$Periodo,mediana = my.fitted1)
+
+
+p_alta<- ggplot(gm_alta, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Estancia en hospital",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_alta  
+
+```     
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**  
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_alta<-grupo %>% summarise( mediana = median(alta,na.rm = T))
+gm_alta<- na.omit(gm_alta)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_alta)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_alta$Periodo,mediana = my.fitted1)
+
+
+p_alta<- ggplot(gm_alta, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Estancia en hospital",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_alta  
+```    
+
+### Tiempo desde el diagnóstico de neumonía  hasta el alta o exitus del paciente 
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**  
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-neumonia %>% group_by(Periodo)
+gm_alta_cruda<-grupo %>% summarise( mediana = median(alta_cruda))
+gm_alta_cruda<- na.omit(gm_alta_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_alta_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_alta_cruda$Periodo,mediana = my.fitted1)
+
+
+p_alta_cruda<- ggplot(gm_alta_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Estancia en hospital",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_alta_cruda  
+
+```     
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**  
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_alta_cruda<-grupo %>% summarise( mediana = median(alta_cruda))
+gm_alta_cruda<- na.omit(gm_alta_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_alta_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_alta_cruda$Periodo,mediana = my.fitted1)
+
+
+p_alta_cruda<- ggplot(gm_alta_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Estancia en hospital",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_alta_cruda  
+```    
+
+### Tiempo desde el diagnóstico al inicio del tratamiento empírico  
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$emp24)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_emp<-grupo %>% summarise( mediana = median(emp,na.rm = T))
+gm_emp<- na.omit(gm_emp)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_emp)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_emp$Periodo,mediana = my.fitted1)
+
+
+p_emp<- ggplot(gm_emp, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnostico a tratamiento empirico",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_emp  
+
+```    
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**  
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_emp<-grupo %>% summarise( mediana = median(emp,na.rm = T))
+gm_emp<- na.omit(gm_emp)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_emp)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_emp$Periodo,mediana = my.fitted1)
+
+
+p_emp<- ggplot(gm_emp, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnostico a tratamiento empirico",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_emp  
+```    
+
+### Tiempo desde el diagnóstico hasta la recepcion de muestras en microbiología  
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$recepcion)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**    
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_recepcion<-grupo %>% summarise( mediana = median(recepcion,na.rm = T))
+gm_recepcion<- na.omit(gm_recepcion)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_recepcion)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_recepcion$Periodo,mediana = my.fitted1)
+
+
+p_recepcion<- ggplot(gm_recepcion, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnostico a recepcion",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_recepcion  
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_recepcion<-grupo %>% summarise( mediana = median(recepcion,na.rm = T))
+gm_recepcion<- na.omit(gm_recepcion)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_recepcion)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_recepcion$Periodo,mediana = my.fitted1)
+
+
+p_recepcion<- ggplot(gm_recepcion, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnostico a recepcion",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_recepcion  
+```    
+
+### Tiempo desde la recepción de la muestra hasta la realización de la prueba rápida  
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$rapida)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_rapida<-grupo %>% summarise( mediana = median(rapida,na.rm = T))
+gm_rapida<- na.omit(gm_rapida)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_rapida)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_rapida$Periodo,mediana = my.fitted1)
+
+
+p_rapida<- ggplot(gm_rapida, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a prueba rapida",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_rapida  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_rapida<-grupo %>% summarise( mediana = median(rapida,na.rm = T))
+gm_rapida<- na.omit(gm_rapida)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_rapida)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_rapida$Periodo,mediana = my.fitted1)
+
+
+p_rapida<- ggplot(gm_rapida, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a prueba rapida",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_rapida   
+```    
+
+### Tiempo desde el diagnóstico de neumonía hasta la realización de la prueba rápida  
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$rapida)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_rapida_cruda<-grupo %>% summarise( mediana = median(rapida_cruda,na.rm = T))
+gm_rapida_cruda<- na.omit(gm_rapida_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_rapida_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_rapida_cruda$Periodo,mediana = my.fitted1)
+
+
+p_rapida_cruda<- ggplot(gm_rapida_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a prueba rapida_cruda",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_rapida_cruda  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_rapida_cruda<-grupo %>% summarise( mediana = median(rapida_cruda,na.rm = T))
+gm_rapida_cruda<- na.omit(gm_rapida_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_rapida_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_rapida_cruda$Periodo,mediana = my.fitted1)
+
+
+p_rapida_cruda<- ggplot(gm_rapida_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a prueba rapida_cruda",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_rapida_cruda  
+```     
+
+
+
+### Tiempo desde la recepción de la muestra hasta el diagnóstico provisional  
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$provi)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_provi<-grupo %>% summarise( mediana = median(provi,na.rm = T))
+gm_provi<- na.omit(gm_provi)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_provi)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_provi$Periodo,mediana = my.fitted1)
+
+
+p_provi<- ggplot(gm_provi, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a informe provisional",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_provi 
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_provi<-grupo %>% summarise( mediana = median(provi,na.rm = T))
+gm_provi<- na.omit(gm_provi)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_provi)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_provi$Periodo,mediana = my.fitted1)
+
+
+p_provi<- ggplot(gm_provi, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diganóstico a informe provisional",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_provi 
+
+```      
+
+### Tiempo desde el diagnóstico de neumonía hasta el diagnóstico provisional  
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$provi_cruda)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_provi_cruda<-grupo %>% summarise( mediana = median(provi_cruda,na.rm = T))
+gm_provi_cruda<- na.omit(gm_provi_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_provi_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_provi_cruda$Periodo,mediana = my.fitted1)
+
+
+p_provi_cruda<- ggplot(gm_provi_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a informe provi_crudasional",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_provi_cruda 
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_provi_cruda<-grupo %>% summarise( mediana = median(provi_cruda,na.rm = T))
+gm_provi_cruda<- na.omit(gm_provi_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_provi_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_provi_cruda$Periodo,mediana = my.fitted1)
+
+
+p_provi_cruda<- ggplot(gm_provi_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diganóstico a informe provi_crudasional",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_provi_cruda 
+
+```     
+
+### Tiempo desde recepción hasta el primer cambio de tratamiento 
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+#plot(neumonia$cambiodat)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_cambio<-grupo %>% summarise( mediana = median(cambiodat,na.rm = T))
+gm_cambio<- na.omit(gm_cambio)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_cambio)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_cambio$Periodo,mediana = my.fitted1)
+
+
+p_cambio<- ggplot(gm_cambio, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a primer cambio de tratamiento",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_cambio  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_cambio<-grupo %>% summarise( mediana = median(cambiodat,na.rm = T))
+gm_cambio<- na.omit(gm_cambio)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_cambio)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_cambio$Periodo,mediana = my.fitted1)
+
+
+p_cambio<- ggplot(gm_cambio, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a primer cambio de tratamiento",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_cambio  
+```       
+
+### Tiempo desde diagnóstico de neumonía hasta el primer cambio de tratamiento 
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$cambiodat_cruda)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_cambio<-grupo %>% summarise( mediana = median(cambiodat_cruda,na.rm = T))
+gm_cambio<- na.omit(gm_cambio)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_cambio)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_cambio$Periodo,mediana = my.fitted1)
+
+
+p_cambio<- ggplot(gm_cambio, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a primer cambio de tratamiento",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_cambio  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_cambio<-grupo %>% summarise( mediana = median(cambiodat_cruda,na.rm = T))
+gm_cambio<- na.omit(gm_cambio)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_cambio)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_cambio$Periodo,mediana = my.fitted1)
+
+
+p_cambio<- ggplot(gm_cambio, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a primer cambio de tratamiento",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_cambio  
+```      
+
+### Tiempo desde recepción hasta el informe final
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$final)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_final<-grupo %>% summarise( mediana = median(final))
+gm_final<- na.omit(gm_final)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_final)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_final$Periodo,mediana = my.fitted1)
+
+
+p_final<- ggplot(gm_final, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a informe final",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_final  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_final<-grupo %>% summarise( mediana = median(final))
+gm_final<- na.omit(gm_final)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_final)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_final$Periodo,mediana = my.fitted1)
+
+
+p_final<- ggplot(gm_final, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a informe final",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_final  
+```   
+
+### Tiempo desde el diagnóstico de neumonía hasta el informe final
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$final_cruda)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_final_cruda<-grupo %>% summarise( mediana = median(final_cruda))
+gm_final_cruda<- na.omit(gm_final_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_final_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_final_cruda$Periodo,mediana = my.fitted1)
+
+
+p_final_cruda<- ggplot(gm_final_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a informe final_cruda",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_final_cruda  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_final_cruda<-grupo %>% summarise( mediana = median(final_cruda))
+gm_final_cruda<- na.omit(gm_final_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_final_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_final_cruda$Periodo,mediana = my.fitted1)
+
+
+p_final_cruda<- ggplot(gm_final_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico a informe final_cruda",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_final_cruda  
+```       
+
+
+### Tiempo desde recepción hasta el diagnóstico etiológico
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$diagetiol)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_diagetiol<-grupo %>% summarise( mediana = median(diagetiol,na.rm = T))
+gm_diagetiol<- na.omit(gm_diagetiol)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_diagetiol)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_diagetiol$Periodo,mediana = my.fitted1)
+
+
+p_diagetiol<- ggplot(gm_diagetiol, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico de neumonía a diagnostico etiologico",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_diagetiol  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_diagetiol<-grupo %>% summarise( mediana = median(diagetiol,na.rm = T))
+gm_diagetiol<- na.omit(gm_diagetiol)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_diagetiol)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_diagetiol$Periodo,mediana = my.fitted1)
+
+
+p_diagetiol<- ggplot(gm_diagetiol, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico de neumonía a diagnostico etiologico",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_diagetiol  
+
+```       
+
+### Tiempo desde el diagnóstico de neumonía hasta el diagnóstico etiológico
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$diagetiol_cruda)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_diagetiol_cruda<-grupo %>% summarise( mediana = median(diagetiol_cruda,na.rm = T))
+gm_diagetiol_cruda<- na.omit(gm_diagetiol_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_diagetiol_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_diagetiol_cruda$Periodo,mediana = my.fitted1)
+
+
+p_diagetiol_cruda<- ggplot(gm_diagetiol_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico de neumonía a diagnostico etiologico",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_diagetiol_cruda  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_diagetiol_cruda<-grupo %>% summarise( mediana = median(diagetiol_cruda,na.rm = T))
+gm_diagetiol_cruda<- na.omit(gm_diagetiol_cruda)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_diagetiol_cruda)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_diagetiol_cruda$Periodo,mediana = my.fitted1)
+
+
+p_diagetiol_cruda<- ggplot(gm_diagetiol_cruda, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde diagnóstico de neumonía a diagnostico etiologico",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_diagetiol_cruda  
+
+```      
+
+
+
+### Tiempo desde la prueba rápida hasta el diagnóstico etiológico
+
+**Nube de puntos**   
+
+```{r , echo=FALSE, warning=FALSE}
+plot(neumonia$diagetiol2)
+```    
+
+**TENDENCIA TEMPORAL PARA TODOS LOS PACIENTES**   
+
+```{r , echo=FALSE, warning=FALSE}
+grupo<-neumonia %>% group_by(Periodo)
+gm_diagetiol2<-grupo %>% summarise( mediana = median(diagetiol2,na.rm = T))
+gm_diagetiol2<- na.omit(gm_diagetiol2)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_diagetiol2)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_diagetiol2$Periodo,mediana = my.fitted1)
+
+
+p_diagetiol2<- ggplot(gm_diagetiol2, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde prueba rápida a diagnostico etiologico",subtitle = "Todos los pacientes")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_diagetiol2  
+
+```   
+
+**PACIENTES CON DIAGNOSTICO ETIOLOGICO EXCLUYENDO HONGOS**   
+
+```{r , echo=FALSE, warning=FALSE}
+
+grupo<-sub_neumo %>% group_by(Periodo)
+gm_diagetiol2<-grupo %>% summarise( mediana = median(diagetiol2,na.rm = T))
+gm_diagetiol2<- na.omit(gm_diagetiol2)
+
+
+lm1 <- lm(mediana  ~ Periodo, data = gm_diagetiol2)
+slm1<-summary(lm1)
+
+
+my.seg1 <- segmented(lm1)
+sms1<-summary(my.seg1)
+smst1<-sms1$coefficients
+pvalor<-paste("p valor = ",round(smst1[14],4))
+
+my.fitted1 <- fitted(my.seg1)
+
+model1 <- data.frame(Periodo = gm_diagetiol2$Periodo,mediana = my.fitted1)
+
+
+p_diagetiol2<- ggplot(gm_diagetiol2, aes(x = Periodo, y = mediana )) +
+  #geom_point(color="grey50")+
+  geom_line(color="grey70")+
+  ggtitle("Tiempo desde prueba rapida a diagnostico etiologico",subtitle = "Paciente con diagnóstico etiológico")+
+  scale_x_continuous(breaks = c(1:max(neumonia$Periodo)))+
+  geom_line(aes(x=model1$Periodo,y=model1$mediana ),color="purple")+
+  geom_vline(xintercept = 5,colour = "navy")+
+  geom_text(aes(x = 9, y = 25,
+                label = pvalor),
+            stat = "unique",
+            color = "peru")
+p_diagetiol2  
+```   
+
+## Asociación entre tiempos de respuesta y realización de diagnóstico etiológico rápido  
+
+```{r , echo=FALSE, warning=FALSE}
+sub_neumo$DER<-as.factor(sub_neumo$DER)
+neumonia$DER<-as.factor(neumonia$DER)
+pk1<-ggplot(neumonia, aes(x =DER, y = alta24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Tiempo desde recepción al alta")
+
+pk1b<-ggplot(neumonia, aes(x =DER, y = alta_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Tiempo desde diagnóstico al alta")
+
+pk2<-ggplot(neumonia, aes(x =DER, y = final24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción a informe final")
+
+pk2b<-ggplot(neumonia, aes(x =DER, y = final_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a informe final")
+
+pk3<-ggplot(neumonia, aes(x =DER, y = cambiodat24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta cambio de tto.")
+
+pk3b<-ggplot(neumonia, aes(x =DER, y = cambiodat_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a cambio de tto.")
+
+pk4<-ggplot(neumonia, aes(x =DER, y = provi24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta informe provisional") 
+
+pk4b<-ggplot(neumonia, aes(x =DER, y = provi_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a informe provisional") 
+
+pk5<-ggplot(neumonia, aes(x =DER, y = diagetiol24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta diag. etiológico")
+
+pk5b<-ggplot(neumonia, aes(x =DER, y = diagetiol_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a diag. etiológico")
+
+pk6<-ggplot(neumonia, aes(x =DER, y = diagetiol224))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Desde rápida a diagnostico etiológico")
+
+pk7<-ggplot(neumonia, aes(x =DER, y = rapida24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Desde diagnostico a prueba rápida")
+
+
+
+grid.arrange(pk1,pk1b, nrow = 1)
+grid.arrange(pk2,pk2b, nrow = 1)
+grid.arrange(pk3,pk3b, nrow = 1)
+grid.arrange(pk4,pk4b, nrow = 1)
+grid.arrange(pk5,pk5b, nrow = 1)
+grid.arrange(pk6,nrow = 1)
+```     
+
+## Asociación entre tiempos de respuesta y realización de PCR  
+
+```{r , echo=FALSE, warning=FALSE}
+sub_neumo$PCR<-as.factor(sub_neumo$PCR)
+
+pk1<-ggplot(sub_neumo, aes(x =PCR, y = alta24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Tiempo desde recepción al alta")
+
+pk1b<-ggplot(sub_neumo, aes(x =PCR, y = alta_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Tiempo desde diagnóstico al alta")
+
+pk2<-ggplot(sub_neumo, aes(x =PCR, y = final24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción a informe final")
+
+pk2b<-ggplot(sub_neumo, aes(x =PCR, y = final_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a informe final")
+
+pk3<-ggplot(sub_neumo, aes(x =PCR, y = cambiodat24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta cambio de tto.")
+
+pk3b<-ggplot(sub_neumo, aes(x =PCR, y = cambiodat_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a cambio de tto.")
+
+pk4<-ggplot(sub_neumo, aes(x =PCR, y = provi24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta informe provisional") 
+
+pk4b<-ggplot(sub_neumo, aes(x =PCR, y = provi_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a informe provisional") 
+
+pk5<-ggplot(sub_neumo, aes(x =PCR, y = diagetiol24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta diag. etiológico")
+
+pk5b<-ggplot(sub_neumo, aes(x =PCR, y = diagetiol_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a diag. etiológico")
+
+pk6<-ggplot(sub_neumo, aes(x =PCR, y = diagetiol224))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Desde rápida a diagnostico etiológico")
+
+pk7<-ggplot(sub_neumo, aes(x =PCR, y = rapida24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Desde diagnostico a prueba rápida")
+
+
+
+grid.arrange(pk1,pk1b, nrow = 1)
+grid.arrange(pk2,pk2b, nrow = 1)
+grid.arrange(pk3,pk3b, nrow = 1)
+grid.arrange(pk4,pk4b, nrow = 1)
+grid.arrange(pk5,pk5b, nrow = 1)
+grid.arrange(pk6,nrow = 1)
+```     
+
+## Asociación entre tiempos de respuesta y periodos pre y post intervención  
+
+```{r , echo=FALSE, warning=FALSE}
+sub_neumo$Pre_post<-as.factor(sub_neumo$Pre_post)
+
+pk1<-ggplot(sub_neumo, aes(x =Pre_post, y = alta24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Tiempo desde recepción al alta")
+
+pk1b<-ggplot(sub_neumo, aes(x =Pre_post, y = alta_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Tiempo desde diagnóstico al alta")
+
+pk2<-ggplot(sub_neumo, aes(x =Pre_post, y = final24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción a informe final")
+
+pk2b<-ggplot(sub_neumo, aes(x =Pre_post, y = final_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a informe final")
+
+pk3<-ggplot(sub_neumo, aes(x =Pre_post, y = cambiodat24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta cambio de tto.")
+
+pk3b<-ggplot(sub_neumo, aes(x =Pre_post, y = cambiodat_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a cambio de tto.")
+
+pk4<-ggplot(sub_neumo, aes(x =Pre_post, y = provi24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta informe provisional") 
+
+pk4b<-ggplot(sub_neumo, aes(x =Pre_post, y = provi_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a informe provisional") 
+
+pk5<-ggplot(sub_neumo, aes(x =Pre_post, y = diagetiol24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De recepción hasta diag. etiológico")
+
+pk5b<-ggplot(sub_neumo, aes(x =Pre_post, y = diagetiol_cruda))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("De diagnóstico a diag. etiológico")
+
+pk6<-ggplot(sub_neumo, aes(x =Pre_post, y = diagetiol224))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Desde rápida a diagnostico etiológico")
+
+pk7<-ggplot(sub_neumo, aes(x =Pre_post, y = rapida24))+
+  geom_boxplot()+
+  stat_compare_means()+
+  ggtitle("Desde diagnostico a prueba rápida")
+
+
+
+grid.arrange(pk1,pk1b, nrow = 1)
+grid.arrange(pk2,pk2b, nrow = 1)
+grid.arrange(pk3,pk3b, nrow = 1)
+grid.arrange(pk4,pk4b, nrow = 1)
+grid.arrange(pk5,pk5b, nrow = 1)
+grid.arrange(pk6,nrow = 1)
+```   
