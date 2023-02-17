@@ -52,6 +52,7 @@ load("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/RF_sf.RData")
 
 ## Análisis de supervivencia con random forest  
 
+
 El análisis con RF se plantea desde dos perspectivas: La primera trata de incluir todas las variables sin falores faltantes, es decir se analizan todos los individuos de la base de datos pero incluyendo solo las variables en las que no faltan datos. Esto nos permite incluir a todos los individuos pero no a todas las variables.  Esta perspectiva es la que usaremos en esta primera parte.  
 
 En un segundo paso, en un próximo documento, utilizaremos una base de datos con todas las variables, lo que implica excluir a los pacientes con algun valor faltante. Esta opción nos permitirá explicar el comportamiento de las puntuaciones DOORMAT y de todos los tiempos de  respuesta para los pacientes con diagnóstico etiológico.   
