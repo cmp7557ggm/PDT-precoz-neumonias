@@ -9,22 +9,249 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r , echo=FALSE, warning=FALSE,comment=F,include=FALSE}
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+library(survival)
+library(knitr)
+library(dplyr)
+library(gridExtra)
+library(openintro)
+library(plotrix)
+library(formattable)
+library(KMsurv)
+library(MASS)
+library(ggplot2)
+library(plotly)
+library(survminer)
+library(ggsankey)
+library(circlize)
+library(readxl)
+library(pillar)
+library(kableExtra)
+library(survival)
+library(VSURF)
+library(KMsurv)
+library(randomForestSRC)
+library(lubridate)
+library(nlme)
+library(ggRandomForests)
+library(fastDummies)
+library(caret)
+library(parallel)
 ```
 
-## Including Plots
+```{r, echo=FALSE,warning=FALSE}
+######################################################
+##TODO EL PREPROCESADO SE ENCUENTRA DESCRITO EN EL SCRIPT RF_GUIA_1.R
+# El resultado del preprocesado se recoge en la base de datos que se llama
+# RF_sf.RData.
+#####################################################
 
-You can also embed plots, for example:
+load("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/RF_sf.RData")
+```     
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+## Análisis de supervivencia con random forest  
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+El análisis con RF se plantea desde dos perspectivas: La primera trata de incluir todas las variables sin falores faltantes, es decir se analizan todos los individuos de la base de datos pero incluyendo solo las variables en las que no faltan datos. Esto nos permite incluir a todos los individuos pero no a todas las variables.  Esta perspectiva es la que usaremos en esta primera parte.  
+
+En un segundo paso, en un próximo documento, utilizaremos una base de datos con todas las variables, lo que implica excluir a los pacientes con algun valor faltante. Esta opción nos permitirá explicar el comportamiento de las puntuaciones DOORMAT y de todos los tiempos de  respuesta para los pacientes con diagnóstico etiológico.   
+
+Desde cualquiera de las dos perspectivas vamos a encontrar un hecho paradójico que consiste en que los cambios introducidos en la fase postintervención no solo no se asocia con una  mayor supervivencia, sino que , al contrario en los análisis previos encontramos, en genral, una mayor mortalidad asociada a estas variables.  
+Esto se debe al no balanceo de los grupos pre y postintervención, de manera que en en la fase post encontramos casi tres veces mas mortalidad, los pacientes presentan un numero significativamente mayor de antecedentes personales de riesgo y un índice de Charlson también significativamente más alto.  Hay también más neumonias asociadas a COVID y aunque en la fase post se detectan más neumonias por hongos,la diferencia no alcanza la significación estadística.  
+
+Por todo ello las variables que recogen los periodos de estudio y las que están asociadas a la intervención, como son el uso de técnicas moleculares en el diagnóstico rápido y los tiempos de respuesta asociados a esas técnicas, se asocian con predicciones de mortalidad más alta. Por ejemplo el tiempo que transcurre deade el diagnóstico hasta que se consigue aislar el microorganismo causante de la neumonia, debería asociarse a un mejor y más rápido abordaje de la enfermedad, , por tanto, a la supervivencia. Sin embargo, los modelos predicen todo lo contrario: cuanto mas retraso en el diagnóstico etiológico mayor supervivencia, lo cual es claramente falso.  
+
+Evitaremos, por tanto utilizar estas variables, que introducen ruido en los modelos y contribuyen a llegar a conclusiones erroneas.  
+
+No usaremos las variables Periodo, pre_post, PCR, DER, DER_hecho, diagetiol, diagetiol2 y  cambiodat, 
+
+## BASE DE DATOS SIN DATOS FALTANTES  
+
+### Modelo random forest inicial  
+
+La salida en R es la siguiente: 
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+set.seed(123)
+mod1<-rfsrc(Surv(alta_cruda,Muertos )~.,data=RF_sf,ntree = 1000,nodesize = 15,mtry = 25, 
+            importance = T)
+mod1 
+```    
+
+### Importancia de las variables  
+
+**Importancia por permutación**   
+
+*Gráfico VIMP*
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE,}
+plot(gg_vimp(mod1))
+```    
+
+**Importancia por profundidad mínima**   
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+p.min<-var.select(mod1, conservative = "medium")
+gg_pmin<-gg_minimal_depth(p.min)
+print(gg_pmin)
+```   
+
+*Gráfico Profundidad mínima*
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE,}
+plot (gg_pmin)
+```   
+
+**Comparacion de métodos VIMP  y Profundidad mínima**  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE,}
+plot (gg_minimal_vimp (gg_pmin))+ 
+  theme (legend.position = c (0.8, 0.2)) 
+```   
+
+### Selección del modelo con menor error de predicción  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE,}
+#Algoritmos para obtener todos los modelos posibles con su correspondiente error OOB
+# y así seleccionar el modelo que menos error de predicción cometa
+
+#_____funcion primera
+data_select<-function(df,Yvar,Xvar=NULL){
+  df<-df[,c(Yvar,Xvar)]
+  Xvar2<-2:(length(Xvar)+1)
+  return(df)
+}
+
+#_____funcion segunda (combinaciones tomandas de n en n)
+combinar<-function(df,Xvar=NULL,numXVar=1){
+  
+  comb_Var<-t(combn(Xvar,numXVar));combinaciones<-comb_Var
+  
+  colnames(combinaciones)<-NULL
+  
+  options(warn=-1)
+  
+  get_names<-function(df,x){
+    outcome<-matrix(data=NA,nrow=nrow(x),ncol=ncol(x))
+    for(i in 1:nrow(x)){
+      outcome[i,1:ncol(x)]<-colnames(df)[x[i,1:ncol(x)]]
+    }
+    return(outcome)
+  }
+  combn_names<-get_names(df,combinaciones)
+  return(combn_names)
+}
+
+#_____funcion tercera (obtención de los modelos y su error)
+Mconf<-function(df, x)
+{
+  filas<-nrow(ccc)
+  materr2<-matrix(nrow=filas,ncol=2)
+  colnames(materr2)<-c( "Variables", "Error")
+  rownames(materr2)<-paste("Modelo",c(1:filas))
+  for (i in 1:nrow(ccc)){
+    xnam <- as.matrix(ccc[i,])
+    fmla <- as.formula(paste("Surv(",colnames(b_datos[1]),",",colnames(b_datos[2]),") ~", paste(xnam, collapse= "+")))
+    
+    mod <- rfsrc(fmla, data = b_datos,ntree = 500)
+    df <- mod$data
+    prob = predict(mod,type = c("response"))
+    df$prob = prob
+    
+    fmla<-as.character(fmla)
+    #coeficiente<-summary(mod)$coefficients[2]
+    #pv<-summary(mod)$coefficients[8]
+    
+    #materr2[i,1]<-nrow(xnam)
+    materr2[i,1]<-fmla[3]
+    materr2[i,2]<-get.cindex(mod$yvar[,1], mod$yvar[,2], mod$predicted.oob)
+    #materr2[i,3]<-round(pv,4)
+    
+  }
+  return(materr2)
+}
+
+b_datos<-dplyr::select(RF_sf,alta_cruda,Muertos,Cancer,Hongo,Antibiotic,Charlson_Index,recepcion,COVID,Edad,GRIPE,rapida_cruda)
+#_________________________
+
+
+ccc<-combinar(b_datos,c(3:9),1)
+d1<-Mconf(b_datos,ccc)
+
+ccc<-combinar(b_datos,c(3:9),2)
+d2<-Mconf(b_datos,ccc)
+
+ccc<-combinar(b_datos,c(3:9),3)
+d3<-Mconf(b_datos,ccc)
+
+ccc<-combinar(b_datos,c(3:9),4)
+d4<-Mconf(b_datos,ccc)
+
+ccc<-combinar(b_datos,c(3:9),5)
+d5<-Mconf(b_datos,ccc)
+
+ccc<-combinar(b_datos,c(3:9),6)
+d6<-Mconf(b_datos,ccc)
+
+ccc<-combinar(b_datos,c(3:9),7)
+d7<-Mconf(b_datos,ccc)
+
+dfinal<-rbind(d1,d2,d3,d4,d5,d6,d7)
+dfinal<-as.data.frame(dfinal)
+dfinal<-arrange(dfinal,Error)
+dfinalr<-slice(dfinal,1:10)
+dfinalr%>%
+  kbl(caption=" Todos los modelos posibles")%>%
+  kable_styling(full_width = F)   
+```     
+
+### Modelo con error de predicción bajo y 4 variables 
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+set.seed(123)
+mod2<-rfsrc(Surv(alta_cruda,Muertos )~Hongo + Antibiotic + recepcion + COVID,data=RF_sf,ntree = 1000,nodesize = 15,mtry = 25, 
+            importance = T)
+mod2 
+```    
+
+#### Gráficos de efectos parciales  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+plot.variable(mod2, partial=T,plots.per.page = 2, xvar.names =c("recepcion", "Hongo","Antibiotic","COVID"))
+```  
+
+### Modelo con variables de interés  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+set.seed(123)
+mod3<-rfsrc(Surv(alta_cruda,Muertos )~Hongo + Antibiotic + recepcion + COVID+ Edad+ 
+              Charlson_Index+ GRIPE+ E_coli+ Cancer+ rapida_cruda+Pseudomonas_a, data=RF_sf,ntree = 1000,nodesize = 15,mtry = 25, importance = T)
+mod3
+```   
+
+#### Gráficos de efectos parciales    
+
+**Antecedentes personales**  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+plot.variable(mod3, partial=T,plots.per.page = 2, xvar.names =c("Charlson_Index", "Cancer","Antibiotic"))
+```    
+
+**Variables sociodemográficas**  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+plot.variable(mod3, partial=T,plots.per.page = 2, xvar.names =c("Edad"))
+```    
+
+**Tiempos de respuesta**  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+plot.variable(mod3, partial=T,plots.per.page = 2, xvar.names =c("recepcion", "rapida_cruda"))
+```     
+
+**Diagnóstico etiológico**  
+
+```{r, echo=FALSE,warning=FALSE,comment="",message=FALSE}
+plot.variable(mod3, partial=T,plots.per.page = 2, xvar.names =c("Hongo", "COVID","GRIPE",
+                                                                "E_coli","Pseudomonas_a"))
+```   
