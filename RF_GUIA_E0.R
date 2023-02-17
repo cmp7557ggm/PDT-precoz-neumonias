@@ -241,5 +241,3 @@ dfinalr%>%
 mod2<-rfsrc(Surv(alta_cruda,Muertos )~Cancer + Hongo + ED0 +  Charlson_Index,data = RF_sf)
 mod2
 plot.variable(mod1, partial=T,plots.per.page = 1, xvar.names = c("ED0","Cancer","Hongo","Charlson_Index"))
-
-
