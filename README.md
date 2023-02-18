@@ -6,4 +6,8 @@ Un analisis descriptivo de la base de datos. Archivo "Descriptiva.Rmd".
 
 Analisis de los espectros y puntuaciones DOORMAT. Archivo "DOORMAT.Rmd".  
 
+Analisis de los tiempos de respuesta en el archivo "Tiempos de respuesta neumonia.Rmd".   
+
+Análisis de supervivencia con random forest en "RF datos completos.Rmd"  
+
 
