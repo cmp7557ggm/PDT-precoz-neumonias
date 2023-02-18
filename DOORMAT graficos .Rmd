@@ -9,22 +9,197 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r , echo=FALSE, warning=FALSE,comment=F,include=FALSE}
+library(dplyr)
+library(knitr)
+library(dplyr)
+library(gridExtra)
+library(openintro)
+library(plotrix)
+library(formattable)
+library(MASS)
+library(ggplot2)
+library(plotly)
+library(survminer)
+library(ggsankey)
+library(circlize)
+library(readxl)
+library(pillar)
+library(kableExtra)
+library(lubridate)
+library(nlme)
+library(segmented)
+```    
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r carga2,warning=FALSE,echo=FALSE}
+neumonia<-read_excel("/Users/carlosmartinperez/Desktop/NEUMONIAS/BUENA/novedades/plantilla buena.xlsx",sheet=1)
+ door<- dplyr::select(neumonia,Espectro_DOORMAT0,ED0,Espectro_DOORMAT1,ED1,Espectro_DOORMAT2,ED2,Espectro_DOORMAT3,ED3, DOORMAT2, DOORMAT3,DE,Hongo,Virus,Pre_post)
+ 
+doorpre<-dplyr::filter(door,Pre_post==1)
+doorpost<-dplyr::filter(door,Pre_post==2)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+door2<-na.omit(door)
+door2pre<-dplyr::filter(door2,Pre_post==1)
+door2post<-dplyr::filter(door2,Pre_post==2)
 
-```{r cars}
-summary(cars)
-```
+door3<-dplyr::filter(door,!is.na(Espectro_DOORMAT1))
+door4<-dplyr::filter(door,!is.na(Espectro_DOORMAT2))
+door5<-dplyr::filter(door,!is.na(Espectro_DOORMAT3))
+```     
 
-## Including Plots
+### Grafico pre-post para todos los pacientes   
 
-You can also embed plots, for example:
+```{r warning=FALSE,echo=FALSE}
+df <- doorpre %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+  ) #transforma el fichero en formato largo
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT subgrupo preintervención",subtitle = "En las cuatro etapas del tratamiento. Todos los pacientes")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR")
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+df <- doorpost %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+  ) #transforma el fichero en formato largo
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT subgrupo postintervención",subtitle = "En las cuatro etapas del tratamiento. Todos los pacientes")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR")
+```    
+
+### Grafico pre-post base de datos sin faltantes 
+
+```{r warning=FALSE,echo=FALSE}  
+df <- door2pre %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+  ) #transforma el fichero en formato largo
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT subgrupo preintervención",subtitle = "En las cuatro etapas del tratamiento. Sin valores faltantes")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR")
+
+
+df <- door2post %>%
+  make_long(Espectro_DOORMAT0, Espectro_DOORMAT1,Espectro_DOORMAT2,Espectro_DOORMAT3
+  ) #transforma el fichero en formato largo
+
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectros DOORMAT subgrupo postintervención",subtitle = "En las cuatro etapas del tratamiento. Sin valores faltantes")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR") 
+
+```  
+
+### Espectro del tratamiento empírico pre y post intervención   
+
+```{r warning=FALSE,echo=FALSE} 
+df <- door %>%
+  make_long(Pre_post,Espectro_DOORMAT0)
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectro DOORMAT 0 ",subtitle = "En las  etapas pre y postintervención")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR") 
+```  
+
+### Espectro del tratamiento tras diagnóstico rápido pre y post intervención   
+
+```{r warning=FALSE,echo=FALSE} 
+df <- door3 %>%  
+  make_long(Pre_post,Espectro_DOORMAT1)
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectro DOORMAT 1 ",subtitle = "En las  etapas pre y postintervención")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR") 
+
+```    
+
+### Espectro del tratamiento tras informe provisional pre y post intervención   
+
+```{r warning=FALSE,echo=FALSE} 
+df <- door4 %>%  
+  make_long(Pre_post,Espectro_DOORMAT1)
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectro DOORMAT 2 ",subtitle = "En las  etapas pre y postintervención")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR") 
+```    
+
+### Espectro del tratamiento tras informe provisional pre y post intervención   
+
+```{r warning=FALSE,echo=FALSE} 
+df <- door5 %>%  
+  make_long(Pre_post,Espectro_DOORMAT1)
+ggplot(df, aes(x = x, next_x = next_x, node = node, next_node = next_node, fill = factor(node), label = node)) +
+  geom_sankey(flow.alpha = .6,
+              node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d(option = "C") +
+  theme_sankey(base_size = 10) +
+  labs(x = NULL) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = .5), 
+        plot.subtitle=element_text(hjust = .5))+
+  ggtitle("Espectro DOORMAT 3 ",subtitle = "En las  etapas pre y postintervención")+
+  labs(caption = "Pacientes con neumonia ingresados en el HUVR") 
+
+```    
